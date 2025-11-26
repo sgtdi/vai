@@ -1,0 +1,64 @@
+name: Release Assets
+
+on:
+  release:
+    types:
+      - created
+
+jobs:
+  build:
+    name: Build and upload
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos:
+          - linux
+          - windows
+          - darwin
+        goarch:
+          - amd64
+          - arm64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+
+      - name: Build app
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          BINARY_NAME="watch-${TAG}-${GOOS}-${GOARCH}"
+          if [ "$GOOS" = "windows" ]; then
+            go build -v -o "${BINARY_NAME}.exe" .
+          else
+            go build -v -o "${BINARY_NAME}" .
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: watch-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: watch-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}*
+
+  publish-assets:
+    name: Publish assets
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: artifacts
+
+      - name: Publish to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*/*

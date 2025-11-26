@@ -1,0 +1,10 @@
+# This workflow is designed for hot-reloading a Go web server
+
+jobs:
+  run-web-server:
+    on:
+      regex:
+        - ".*\\.go$"
+    series:
+      - cmd: "go"
+        params: ["run", "."]

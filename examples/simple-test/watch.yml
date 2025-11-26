@@ -1,0 +1,16 @@
+# This workflow runs Go tests with a specific environment variable set
+
+jobs:
+  test-with-env:
+    on:
+      # Watch all Go files, but exclude the main module files
+      regex:
+        - ".*\\.go$"
+        - "!go.mod$"
+        - "!go.sum$"
+    series:
+      - env:
+          TEST_MODE: "integration"
+          DB_HOST: "localhost"
+        cmd: "go"
+        params: ["test", "-v", "./..."]

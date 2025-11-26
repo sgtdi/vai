@@ -1,0 +1,13 @@
+# This workflow first builds the Go application into a binary, and then runs the compiled binary
+
+jobs:
+  build-and-run:
+    on:
+      regex:
+        - ".*\\.go$"
+    series:
+      # Build the application
+      - cmd: "go"
+        params: ["build", "-o", "app", "."]
+      # Run the compiled application
+      - cmd: "./app"

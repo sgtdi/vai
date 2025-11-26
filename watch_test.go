@@ -1,0 +1,118 @@
+package main
+
+import (
+	"os"
+	"path/filepath"
+	"reflect"
+	"sort"
+	"testing"
+	"time"
+
+	"gopkg.in/yaml.v3"
+)
+
+func TestWatch_SetDefaults(t *testing.T) {
+	t.Run("sets defaults for zero values", func(t *testing.T) {
+		w := &Watch{}
+		w.SetDefaults()
+
+		if w.Config.BufferSize != 4096 {
+			t.Errorf("Expected BufferSize to be 4096, got %d", w.Config.BufferSize)
+		}
+		if w.Config.LogLevel != "warn" {
+			t.Errorf("Expected LogLevel to be 'warn', got '%s'", w.Config.LogLevel)
+		}
+		if w.Config.Cooldown != 100*time.Millisecond {
+			t.Errorf("Expected Cooldown to be 100ms, got %v", w.Config.Cooldown)
+		}
+	})
+
+	t.Run("does not override existing values", func(t *testing.T) {
+		w := &Watch{
+			Config: Config{
+				BufferSize: 512,
+				LogLevel:   "debug",
+				Cooldown:   50 * time.Millisecond,
+			},
+		}
+		w.SetDefaults()
+
+		if w.Config.BufferSize != 512 {
+			t.Errorf("Expected BufferSize to remain 512, got %d", w.Config.BufferSize)
+		}
+		if w.Config.LogLevel != "debug" {
+			t.Errorf("Expected LogLevel to remain 'debug', got '%s'", w.Config.LogLevel)
+		}
+		if w.Config.Cooldown != 50*time.Millisecond {
+			t.Errorf("Expected Cooldown to remain 50ms, got %v", w.Config.Cooldown)
+		}
+	})
+}
+
+func TestWatch_Save(t *testing.T) {
+	w := &Watch{
+		Config: Config{Path: "/tmp", LogLevel: "info"},
+		Jobs: map[string]Job{
+			"test-job": {Cmd: "go", Params: []string{"test"}},
+		},
+	}
+
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "watch.yml")
+
+	err := w.Save(filePath)
+	if err != nil {
+		t.Fatalf("Save() returned an unexpected error: %v", err)
+	}
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to read saved file: %v", err)
+	}
+
+	var loadedWatch Watch
+	if err := yaml.Unmarshal(data, &loadedWatch); err != nil {
+		t.Fatalf("Failed to unmarshal saved data: %v", err)
+	}
+
+	if !reflect.DeepEqual(w.Config, loadedWatch.Config) {
+		t.Errorf("Saved config does not match original. Got %+v, want %+v", loadedWatch.Config, w.Config)
+	}
+	if !reflect.DeepEqual(w.Jobs, loadedWatch.Jobs) {
+		t.Errorf("Saved jobs do not match original. Got %+v, want %+v", loadedWatch.Jobs, w.Jobs)
+	}
+}
+
+func TestAggregateRegex(t *testing.T) {
+	watch := &Watch{
+		Jobs: map[string]Job{
+			"job1": {
+				On: &On{Regex: []string{"\\.go$", "!\\.test\\.go$", "\\.mod$"}},
+			},
+			"job2": {
+				On: &On{Regex: []string{"\\.html$", "!\\.test\\.go$"}},
+			},
+			"job3": {},
+			"job4": {
+				On: &On{Regex: []string{"\\.go$"}},
+			},
+		},
+	}
+
+	inc, exc := aggregateRegex(watch)
+
+	sort.Strings(inc)
+	sort.Strings(exc)
+
+	expectedInc := []string{"\\.go$", "\\.html$", "\\.mod$"}
+	sort.Strings(expectedInc)
+	expectedExc := []string{"\\.test\\.go$"}
+	sort.Strings(expectedExc)
+
+	if !reflect.DeepEqual(inc, expectedInc) {
+		t.Errorf("Expected inclusion patterns %v, got %v", expectedInc, inc)
+	}
+	if !reflect.DeepEqual(exc, expectedExc) {
+		t.Errorf("Expected exclusion patterns %v, got %v", expectedExc, exc)
+	}
+}
