@@ -43,6 +43,7 @@ jobs:
         run: go mod tidy
 
       - name: Build app
+        shell: bash
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
