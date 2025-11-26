@@ -15,9 +15,9 @@ Stop the tedious **cycle of manually stopping, rebuilding, and restarting** your
 ## Index
 
 - [Features](#features)
-- [Why Choose watch](#why-watch)
+- [Why watch](#why-watch)
 - [Installation](#installation)
-- [Quick Start](#quick-start)
+- [Quick start](#quick-start)
 - [Examples](#examples)
 - [Contributing](#contributing)
 - [License](#license)
