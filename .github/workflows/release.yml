@@ -8,16 +8,28 @@ on:
 jobs:
   build:
     name: Build and upload
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        goos:
-          - linux
-          - windows
-          - darwin
-        goarch:
-          - amd64
-          - arm64
+        include:
+          - goos: linux
+            goarch: amd64
+            os: ubuntu-latest
+          - goos: linux
+            goarch: arm64
+            os: ubuntu-latest
+          - goos: windows
+            goarch: amd64
+            os: windows-latest
+          - goos: windows
+            goarch: arm64
+            os: windows-latest
+          - goos: darwin
+            goarch: amd64
+            os: macos-13
+          - goos: darwin
+            goarch: arm64
+            os: macos-14
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
