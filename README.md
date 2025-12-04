@@ -24,7 +24,7 @@ Stop the tedious **cycle of manually stopping, rebuilding, and restarting** your
 
 ## Features
 
-- 🔥 Hot reload: Automatically detects [README.md](README.md)file changes and restarts your Go application instantly
+- 🔥 Hot reload: Automatically detects file changes and restarts your Go application instantly
 - ⚡  Zero configuration: Works out-of-the-box for Go projects, no setup required
 - 🎯 Zero external deps: Self contained executable using [fswatcher](https://github.com/sgtdi/fswatcher) for high-performance file monitoring
 - 🔧 Flexible workflows: Simple CLI mode for quick tasks, YAML configuration for complex multi-step workflows
