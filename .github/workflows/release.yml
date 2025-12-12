@@ -57,7 +57,7 @@ jobs:
           fi
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: watch-${{ matrix.goos }}-${{ matrix.goarch }}
           path: watch-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}*
