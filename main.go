@@ -116,7 +116,9 @@ func main() {
 				}
 			}
 		} else {
-			positionalArgs = append(positionalArgs, arg)
+			// This is the first, the rest of the args belong to the command.
+			positionalArgs = args[i:]
+			break
 		}
 		i++
 	}

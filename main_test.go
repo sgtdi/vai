@@ -105,6 +105,18 @@ func TestHandleCommands(t *testing.T) {
 			t.Errorf("Expected single to be %v, got %v", positional, single)
 		}
 	})
+
+	t.Run("positional args with flags are parsed correctly", func(t *testing.T) {
+		positional := []string{"some-command", "--flag", "value"}
+		series, single := handleCommands(nil, positional)
+
+		if series != nil {
+			t.Errorf("Expected series to be nil, got %v", series)
+		}
+		if !reflect.DeepEqual(single, positional) {
+			t.Errorf("Expected single to be %v, got %v", positional, single)
+		}
+	})
 }
 
 func TestHandleRegex(t *testing.T) {
