@@ -20,15 +20,6 @@ type Config struct {
 	Debug            bool          `yaml:"debug,omitempty"`
 }
 
-type flags []string
-
-func (i *flags) String() string { return strings.Join(*i, ", ") }
-
-func (i *flags) Set(value string) error {
-	*i = append(*i, value)
-	return nil
-}
-
 var version = "1.1.0"
 
 func main() {
@@ -130,9 +121,9 @@ func main() {
 		i++
 	}
 
-	fmt.Printf("\n%s--------------%s\n", colorPurple, colorReset)
-	fmt.Printf("%sVai - v%s%s\n", colorPurple, version, colorReset)
-	fmt.Printf("%s--------------%s\n\n", colorPurple, colorReset)
+	fmt.Printf("\n%s--------------%s\n", ColorPurple, ColorReset)
+	fmt.Printf("%sVai - v%s%s\n", ColorPurple, version, ColorReset)
+	fmt.Printf("%s--------------%s\n\n", ColorPurple, ColorReset)
 
 	if versionFlag {
 		os.Exit(0)
@@ -227,6 +218,11 @@ func handleConfig(cmdFlags []string, positionalArgs []string, path string, pathI
 		}
 	}
 
+	if watch == nil {
+		Log(SeverityError, "Internal error: watch configuration not initialized.")
+		os.Exit(1)
+	}
+
 	watch.Config.Debug = debug
 	watch.SetDefaults()
 
@@ -240,46 +236,46 @@ func handleConfig(cmdFlags []string, positionalArgs []string, path string, pathI
 // printConfig prints the current config
 func printConfig(w *Vai) {
 
-	fmt.Printf("%s--- Global Config ---%s\n", colorYellow, colorReset)
-	fmt.Printf("%s- Path:%s %s\n", colorCyan, colorReset, w.Config.Path)
-	fmt.Printf("%s- Cooldown:%s %s\n", colorCyan, colorReset, w.Config.Cooldown)
-	fmt.Printf("%s- Batching Duration:%s %s\n", colorCyan, colorReset, w.Config.BatchingDuration)
-	fmt.Printf("%s- Buffer Size:%s %d\n", colorCyan, colorReset, w.Config.BufferSize)
-	fmt.Printf("%s- Log Level:%s %s\n", colorCyan, colorReset, w.Config.LogLevel)
-	fmt.Printf("%s---------------------%s\n", colorYellow, colorReset)
+	fmt.Printf("%s--- Global Config ---%s\n", ColorYellow, ColorReset)
+	fmt.Printf("%s- Path:%s %s\n", ColorCyan, ColorReset, w.Config.Path)
+	fmt.Printf("%s- Cooldown:%s %s\n", ColorCyan, ColorReset, w.Config.Cooldown)
+	fmt.Printf("%s- Batching Duration:%s %s\n", ColorCyan, ColorReset, w.Config.BatchingDuration)
+	fmt.Printf("%s- Buffer Size:%s %d\n", ColorCyan, ColorReset, w.Config.BufferSize)
+	fmt.Printf("%s- Log Level:%s %s\n", ColorCyan, ColorReset, w.Config.LogLevel)
+	fmt.Printf("%s---------------------%s\n", ColorYellow, ColorReset)
 
 	if len(w.Jobs) > 0 {
-		fmt.Printf("\n%s--- Jobs ---%s\n", colorYellow, colorReset)
+		fmt.Printf("\n%s--- Jobs ---%s\n", ColorYellow, ColorReset)
 		for name, job := range w.Jobs {
-			fmt.Printf("%s- Job:%s %s\n", colorCyan, colorReset, name)
+			fmt.Printf("%s- Job:%s %s\n", ColorCyan, ColorReset, name)
 			if job.On != nil {
 				if len(job.On.Paths) > 0 {
-					fmt.Printf("  %s- Watch Paths:%s %s\n", colorCyan, colorReset, strings.Join(job.On.Paths, ", "))
+					fmt.Printf("  %s- Watch Paths:%s %s\n", ColorCyan, ColorReset, strings.Join(job.On.Paths, ", "))
 				}
 				if len(job.On.Regex) > 0 {
-					fmt.Printf("  %s- Inclusion Regex:%s %s\n", colorCyan, colorReset, strings.Join(job.On.Regex, ", "))
+					fmt.Printf("  %s- Inclusion Regex:%s %s\n", ColorCyan, ColorReset, strings.Join(job.On.Regex, ", "))
 				}
 			}
 
 			if len(job.Series) > 0 {
-				fmt.Printf("  %s- Commands:%s\n", colorCyan, colorReset)
+				fmt.Printf("  %s- Commands:%s\n", ColorCyan, ColorReset)
 				for _, seriesJob := range job.Series {
 					cmd := seriesJob.Cmd
 					if len(seriesJob.Params) > 0 {
 						cmd += " " + strings.Join(seriesJob.Params, " ")
 					}
-					fmt.Printf("    %s- %s%s\n", colorWhite, cmd, colorReset)
+					fmt.Printf("    %s- %s%s\n", ColorWhite, cmd, ColorReset)
 				}
 			}
 
 			if len(job.Env) > 0 {
-				fmt.Printf("  %s- Environment:%s\n", colorCyan, colorReset)
+				fmt.Printf("  %s- Environment:%s\n", ColorCyan, ColorReset)
 				for key, val := range job.Env {
-					fmt.Printf("    %s- %s:%s %s\n", colorWhite, key, colorReset, val)
+					fmt.Printf("    %s- %s:%s %s\n", ColorWhite, key, ColorReset, val)
 				}
 			}
 		}
-		fmt.Printf("%s------------%s\n", colorYellow, colorReset)
+		fmt.Printf("%s------------%s\n", ColorYellow, ColorReset)
 	}
 }
 
@@ -332,23 +328,23 @@ func handleHelp(helpFlag bool) {
 		return
 	}
 
-	fmt.Printf("%sUsage:%s vai %s[flags]%s %s[command...]...%s\n", colorYellow, colorReset, colorCyan, colorReset, colorCyan, colorReset)
-	fmt.Printf("   or: watch %s--file%s <file>\n", colorCyan, colorReset)
+	fmt.Printf("%sUsage:%s vai %s[flags]%s %s[command...]...%s\n", ColorYellow, ColorReset, ColorCyan, ColorReset, ColorCyan, ColorReset)
+	fmt.Printf("   or: watch %s--file%s <file>\n", ColorCyan, ColorReset)
 	fmt.Println("\nA tool to run commands when files change, configured via CLI or a YAML file.")
 
-	fmt.Printf("\n%sConfiguration Modes:%s\n", colorYellow, colorReset)
-	fmt.Printf("  1. %sCLI Mode:%s Provide a command directly (e.g., `watch go run .`).\n", colorWhite, colorReset)
-	fmt.Printf("  2. %sFile Mode:%s Use a YAML file for complex workflows (e.g., `watch --file watch.yml`).\n", colorWhite, colorReset)
+	fmt.Printf("\n%sConfiguration Modes:%s\n", ColorYellow, ColorReset)
+	fmt.Printf("  1. %sCLI Mode:%s Provide a command directly (e.g., `watch go run .`).\n", ColorWhite, ColorReset)
+	fmt.Printf("  2. %sFile Mode:%s Use a YAML file for complex workflows (e.g., `watch --file watch.yml`).\n", ColorWhite, ColorReset)
 
-	fmt.Printf("\n%sFlags:%s\n", colorYellow, colorReset)
-	fmt.Printf("  %s-c, --cmd%s <command>      Command to run. Can be specified multiple times.\n", colorCyan, colorReset)
-	fmt.Printf("  %s-p, --path%s <path>        Path to watch. (default: .)\n", colorCyan, colorReset)
-	fmt.Printf("  %s-e, --env%s <vars>         KEY=VALUE environment variables.\n", colorCyan, colorReset)
-	fmt.Printf("  %s-r, --regex%s <patterns>   Glob patterns to watch.\n", colorCyan, colorReset)
-	fmt.Printf("  %s-s, --save%s <file>        Save CLI flags to a new YAML file and exit.\n", colorCyan, colorReset)
-	fmt.Printf("  %s-f, --file%s <file>        Load configuration from a YAML file.\n", colorCyan, colorReset)
-	fmt.Printf("  %s-q, --quiet%s              Disable all logging output.\n", colorCyan, colorReset)
-	fmt.Printf("  %s-h, --help%s               Show this help message.\n", colorCyan, colorReset)
+	fmt.Printf("\n%sFlags:%s\n", ColorYellow, ColorReset)
+	fmt.Printf("  %s-c, --cmd%s <command>      Command to run. Can be specified multiple times.\n", ColorCyan, ColorReset)
+	fmt.Printf("  %s-p, --path%s <path>        Path to watch. (default: .)\n", ColorCyan, ColorReset)
+	fmt.Printf("  %s-e, --env%s <vars>         KEY=VALUE environment variables.\n", ColorCyan, ColorReset)
+	fmt.Printf("  %s-r, --regex%s <patterns>   Glob patterns to watch.\n", ColorCyan, ColorReset)
+	fmt.Printf("  %s-s, --save%s <file>        Save CLI flags to a new YAML file and exit.\n", ColorCyan, ColorReset)
+	fmt.Printf("  %s-f, --file%s <file>        Load configuration from a YAML file.\n", ColorCyan, ColorReset)
+	fmt.Printf("  %s-q, --quiet%s              Disable all logging output.\n", ColorCyan, ColorReset)
+	fmt.Printf("  %s-h, --help%s               Show this help message.\n", ColorCyan, ColorReset)
 	os.Exit(0)
 }
 
