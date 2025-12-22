@@ -123,7 +123,7 @@ func TestExecute(t *testing.T) {
 
 		time.Sleep(100 * time.Millisecond)
 
-		stopCommand(job.Name)
+		stopCommand(job.Name, false)
 
 		wg.Wait()
 

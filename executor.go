@@ -40,14 +40,22 @@ func Execute(ctx context.Context, job Job) {
 }
 
 // stopCommand stops a running command by its job name
-func stopCommand(jobName string) {
+func stopCommand(jobName string, debug bool) {
 	processMutex.Lock()
 	defer processMutex.Unlock()
 
 	if cmd, ok := runningProcesses[jobName]; ok {
 		if cmd.Process != nil {
+			if debug {
+				Logf(SeverityWarn, "Stopping process with PID: %d", cmd.Process.Pid)
+			}
 			// Kill the process group to ensure child processes are also killed
-			_ = killProcess(cmd)
+			err := killProcess(cmd)
+			if err != nil {
+				Logf(SeverityError, "Failed to stop process: %v", err)
+			}
+			// Wait for the process to exit to release resources
+			_, _ = cmd.Process.Wait()
 		}
 	}
 }
@@ -65,12 +73,14 @@ func executeJob(ctx context.Context, job Job) {
 		runCommand(ctx, job)
 	} else if len(job.Series) > 0 {
 		for _, seriesJob := range job.Series {
+			seriesJob.Name = job.Name
 			Execute(ctx, seriesJob)
 		}
 	} else if len(job.Parallel) > 0 {
 		var wg sync.WaitGroup
 		for _, parallelJob := range job.Parallel {
 			jobToRun := parallelJob
+			jobToRun.Name = job.Name
 			wg.Go(func() {
 				Execute(ctx, jobToRun)
 			})

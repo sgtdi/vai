@@ -26,15 +26,15 @@ func NewJobManager() *JobManager {
 }
 
 // Register starts tracking a new job. If a job with the same name is already running, it cancels the previous one
-func (jm *JobManager) Register(jobName string) (context.Context, func()) {
+func (jm *JobManager) Register(jobName string, debug bool) (context.Context, func()) {
 	jm.mu.Lock()
 	defer jm.mu.Unlock()
 
-	// Stop all previously running jobs
-	for name, job := range jm.running {
-		Logf(SeverityInfo, "Stopping previously running job: %s", name)
-		stopCommand(name)
+	// Stop previously running job with the same name
+	if job, ok := jm.running[jobName]; ok {
+		Logf(SeverityInfo, "Stopping previously running job: %s", jobName)
 		job.cancel()
+		stopCommand(jobName, debug)
 	}
 
 	// Create a new job instance
@@ -57,5 +57,17 @@ func (jm *JobManager) Register(jobName string) (context.Context, func()) {
 		if job, ok := jm.running[jobName]; ok && job.id == jobID {
 			delete(jm.running, jobName)
 		}
+	}
+}
+
+// StopAll stops all running jobs
+func (jm *JobManager) StopAll(debug bool) {
+	jm.mu.Lock()
+	defer jm.mu.Unlock()
+
+	for name, job := range jm.running {
+		Logf(SeverityInfo, "Stopping job on exit: %s", name)
+		job.cancel()
+		stopCommand(name, debug)
 	}
 }

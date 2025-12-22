@@ -1,14 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"time"
 )
 
-// Config options for file watcher
+// Config options for file vai.yaml
 type Config struct {
 	Path             string        `yaml:"path"`
 	BufferSize       int           `yaml:"bufferSize"`
@@ -27,24 +29,26 @@ func (i *flags) Set(value string) error {
 	return nil
 }
 
+var version = "1.1.0"
+
 func main() {
 	args := os.Args[1:]
 
 	var cmdFlags []string
 	var positionalArgs []string
 	var path, regex, env, file, save string = ".", "", "", "watch.yml", "watch.yml"
-	var help, debug, quiet bool
+	var help, debug, quiet, versionFlag bool
 	var pathIsSet, saveIsSet bool
 
 	knownFlagsWithArg := map[string]bool{
 		"cmd": true, "path": true, "env": true, "regex": true, "save": true, "file": true,
 	}
 	knownBoolFlags := map[string]bool{
-		"help": true, "debug": true, "quiet": true,
+		"help": true, "debug": true, "quiet": true, "version": true,
 	}
 	shortFlags := map[string]string{
 		"c": "cmd", "p": "path", "e": "env", "r": "regex", "s": "save", "f": "file",
-		"h": "help", "d": "debug", "q": "quiet",
+		"h": "help", "d": "debug", "q": "quiet", "v": "version",
 	}
 
 	i := 0
@@ -116,12 +120,22 @@ func main() {
 					debug = true
 				case "quiet":
 					quiet = true
+				case "version":
+					versionFlag = true
 				}
 			}
 		} else {
 			positionalArgs = append(positionalArgs, arg)
 		}
 		i++
+	}
+
+	fmt.Printf("\n%s--------------%s\n", colorPurple, colorReset)
+	fmt.Printf("%sVai - v%s%s\n", colorPurple, version, colorReset)
+	fmt.Printf("%s--------------%s\n\n", colorPurple, colorReset)
+
+	if versionFlag {
+		os.Exit(0)
 	}
 
 	watch := handleConfig(
@@ -139,11 +153,35 @@ func main() {
 
 	Log(SeverityInfo, "Starting file watch...")
 	watch.jobManager = NewJobManager()
-	startWatch(watch)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Handle shutdown signals
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt)
-	<-sigChan
+	go func() {
+		<-sigChan
+		Log(SeverityInfo, "Shutdown signal received.")
+		cancel()
+	}()
+
+	// Start the watcher in a goroutine
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		startWatch(ctx, watch)
+	}()
+
+	// Wait for the context to be canceled
+	<-ctx.Done()
+
+	// Wait for the watcher to finish
+	wg.Wait()
+
+	Log(SeverityInfo, "Shutting down. Stopping all running jobs...")
+	watch.jobManager.StopAll(watch.Config.Debug)
 
 	if saveIsSet {
 		Logf(SeverityInfo, "Saving configuration to %s on exit...", save)
@@ -154,17 +192,17 @@ func main() {
 		}
 	}
 
-	Log(SeverityInfo, "Watch shutting down.")
+	Log(SeverityInfo, "Vai shutting down")
 }
 
 // handleConfig parse config struct with all possible flags and args
-func handleConfig(cmdFlags []string, positionalArgs []string, path string, pathIsSet bool, regex, env, filePath string, help, debug, quiet bool) *Watch {
+func handleConfig(cmdFlags []string, positionalArgs []string, path string, pathIsSet bool, regex, env, filePath string, help, debug, quiet bool) *Vai {
 	// Set quiet flag
 	isQuiet = quiet
 	// Handle help flag
 	handleHelp(help)
 
-	var watch *Watch
+	var watch *Vai
 	var err error
 
 	// Prioritize CLI commands over config
@@ -200,13 +238,7 @@ func handleConfig(cmdFlags []string, positionalArgs []string, path string, pathI
 }
 
 // printConfig prints the current config
-func printConfig(w *Watch) {
-	const (
-		colorReset  = "\033[0m"
-		colorYellow = "\033[33m"
-		colorCyan   = "\033[36m"
-		colorWhite  = "\033[97m"
-	)
+func printConfig(w *Vai) {
 
 	fmt.Printf("%s--- Global Config ---%s\n", colorYellow, colorReset)
 	fmt.Printf("%s- Path:%s %s\n", colorCyan, colorReset, w.Config.Path)
@@ -300,15 +332,7 @@ func handleHelp(helpFlag bool) {
 		return
 	}
 
-	// Colors for help message
-	const (
-		colorReset  = "\033[0m"
-		colorYellow = "\033[33m"
-		colorCyan   = "\033[36m"
-		colorWhite  = "\033[97m"
-	)
-
-	fmt.Printf("%sUsage:%s watch %s[flags]%s %s[command...]%s\n", colorYellow, colorReset, colorCyan, colorReset, colorCyan, colorReset)
+	fmt.Printf("%sUsage:%s vai %s[flags]%s %s[command...]...%s\n", colorYellow, colorReset, colorCyan, colorReset, colorCyan, colorReset)
 	fmt.Printf("   or: watch %s--file%s <file>\n", colorCyan, colorReset)
 	fmt.Println("\nA tool to run commands when files change, configured via CLI or a YAML file.")
 

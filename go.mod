@@ -1,4 +1,4 @@
-module github.com/sgtdi/watch
+module github.com/sgtdi/vai
 
 go 1.25.4
 

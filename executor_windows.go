@@ -12,5 +12,5 @@ func setpgid(cmd *exec.Cmd) {
 }
 
 func killProcess(cmd *exec.Cmd) error {
-	return exec.Command("taskkill", "/F", "/T", "/PID", strconv.Itoa(cmd.Process.Pid)).Run()
+	return exec.Command("taskkill", "/T", "/PID", strconv.Itoa(cmd.Process.Pid)).Run()
 }

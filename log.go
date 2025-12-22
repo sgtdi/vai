@@ -21,10 +21,13 @@ const (
 
 // ANSI Color Codes for terminal output
 const (
-	ColorReset  = "\033[0m"
-	ColorRed    = "\033[31m"
-	ColorGreen  = "\033[32m"
-	ColorYellow = "\033[33m"
+	colorReset  = "\033[0m"
+	colorRed    = "\033[31m"
+	colorGreen  = "\033[32m"
+	colorYellow = "\033[33m"
+	colorCyan   = "\033[36m"
+	colorPurple = "\033[35m"
+	colorWhite  = "\033[97m"
 )
 
 // logImpl handles formatting and printing
@@ -36,32 +39,23 @@ func logImpl(severity, message string) {
 	var color string
 	switch severity {
 	case SeveritySuccess:
-		color = ColorGreen
+		color = colorGreen
 	case SeverityWarn:
-		color = ColorYellow
+		color = colorYellow
 	case SeverityError:
-		color = ColorRed
-		message = fmt.Sprintf("%s%s%s", ColorRed, message, ColorReset)
+		color = colorRed
+		message = fmt.Sprintf("%s%s%s", colorRed, message, colorReset)
 	default:
-		color = ""
+		color = colorCyan
 	}
 
-	if color != "" {
-		// Print the formatted string: [hh:mm:ss][watch] - Message
-		fmt.Printf("[%s][%s%s%s] - %s\n",
-			timestamp,
-			color,
-			"watch",
-			ColorReset,
-			message,
-		)
-	} else {
-		// Print the formatted string: [hh:mm:ss][watch] - Message
-		fmt.Printf("[%s][watch] - %s\n",
-			timestamp,
-			message,
-		)
-	}
+	// Print the formatted string: [hh:mm:ss] - Message
+	fmt.Printf("[%s%s%s] %s\n",
+		color,
+		timestamp,
+		colorReset,
+		message,
+	)
 }
 
 // Log prints a formatted log mesage

@@ -27,24 +27,24 @@ type On struct {
 }
 
 // FromFile loads a Workflow from a YAML configuration file
-func FromFile(filePath string, path string, pathIsSet bool) (*Watch, error) {
+func FromFile(filePath string, path string, pathIsSet bool) (*Vai, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
-	var watch Watch
-	if err := yaml.Unmarshal(data, &watch); err != nil {
+	var vai Vai
+	if err := yaml.Unmarshal(data, &vai); err != nil {
 		return nil, err
 	}
 	// Override the config file's path if the --path flag was explicitly provided
 	if pathIsSet {
-		watch.Config.Path = path
+		vai.Config.Path = path
 	}
-	return &watch, nil
+	return &vai, nil
 }
 
 // FromCLI creates a Workflow object from the parsed command-line flags
-func FromCLI(seriesCmds []string, singleCmd []string, path string, patterns []string, env map[string]string) *Watch {
+func FromCLI(seriesCmds []string, singleCmd []string, path string, patterns []string, env map[string]string) *Vai {
 	var taskActions []Job
 
 	if len(singleCmd) > 0 {
@@ -67,6 +67,7 @@ func FromCLI(seriesCmds []string, singleCmd []string, path string, patterns []st
 	}
 
 	jobAction := Job{
+		Name:   "default",
 		Series: taskActions,
 		Env:    env,
 		On: &On{
@@ -75,7 +76,7 @@ func FromCLI(seriesCmds []string, singleCmd []string, path string, patterns []st
 		},
 	}
 
-	return &Watch{
+	return &Vai{
 		Config: Config{
 			Path: path,
 		},

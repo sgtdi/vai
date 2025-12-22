@@ -30,12 +30,12 @@ func captureOutput(f func()) string {
 func TestHandleConfig(t *testing.T) {
 	t.Run("CLI arguments take precedence", func(t *testing.T) {
 		cmdFlags := []string{"go run ."}
-		watch := handleConfig(cmdFlags, nil, "./app", true, "", "", "watch.yml", false, false, false)
+		vai := handleConfig(cmdFlags, nil, "./app", true, "", "", "vai.yml", false, false, false)
 
-		if watch.Config.Path != "./app" {
-			t.Errorf("Expected path to be './app', got '%s'", watch.Config.Path)
+		if vai.Config.Path != "./app" {
+			t.Errorf("Expected path to be './app', got '%s'", vai.Config.Path)
 		}
-		if _, ok := watch.Jobs["default"]; !ok {
+		if _, ok := vai.Jobs["default"]; !ok {
 			t.Error("Expected a 'default' job to be created from CLI args")
 		}
 	})
@@ -48,7 +48,7 @@ jobs:
   from-file:
     cmd: echo hello
 `
-		tmpfile, err := os.CreateTemp("", "watch.*.yml")
+		tmpfile, err := os.CreateTemp("", "vai.*.yml")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -56,25 +56,25 @@ jobs:
 		tmpfile.Write([]byte(content))
 		tmpfile.Close()
 
-		watch := handleConfig(nil, nil, "", false, "", "", tmpfile.Name(), false, false, false)
+		vai := handleConfig(nil, nil, "", false, "", "", tmpfile.Name(), false, false, false)
 
-		if watch.Config.Path != "/file" {
-			t.Errorf("Expected path to be '/file', got '%s'", watch.Config.Path)
+		if vai.Config.Path != "/file" {
+			t.Errorf("Expected path to be '/file', got '%s'", vai.Config.Path)
 		}
-		if _, ok := watch.Jobs["from-file"]; !ok {
+		if _, ok := vai.Jobs["from-file"]; !ok {
 			t.Error("Expected job 'from-file' to be loaded from the config file")
 		}
 	})
 
 	t.Run("Debug flag is set correctly", func(t *testing.T) {
-		tmpfile, err := os.CreateTemp("", "watch.*.yaml")
+		tmpfile, err := os.CreateTemp("", "vai.*.yaml")
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer os.Remove(tmpfile.Name())
 
-		watch := handleConfig(nil, nil, "", false, "", "", tmpfile.Name(), false, true, false)
-		if !watch.Config.Debug {
+		vai := handleConfig(nil, nil, "", false, "", "", tmpfile.Name(), false, true, false)
+		if !vai.Config.Debug {
 			t.Error("Expected Debug to be true, but it was false")
 		}
 	})

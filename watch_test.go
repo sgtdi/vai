@@ -13,7 +13,7 @@ import (
 
 func TestWatch_SetDefaults(t *testing.T) {
 	t.Run("sets defaults for zero values", func(t *testing.T) {
-		w := &Watch{}
+		w := &Vai{}
 		w.SetDefaults()
 
 		if w.Config.BufferSize != 4096 {
@@ -28,7 +28,7 @@ func TestWatch_SetDefaults(t *testing.T) {
 	})
 
 	t.Run("does not override existing values", func(t *testing.T) {
-		w := &Watch{
+		w := &Vai{
 			Config: Config{
 				BufferSize: 512,
 				LogLevel:   "debug",
@@ -50,7 +50,7 @@ func TestWatch_SetDefaults(t *testing.T) {
 }
 
 func TestWatch_Save(t *testing.T) {
-	w := &Watch{
+	w := &Vai{
 		Config: Config{Path: "/tmp", LogLevel: "info"},
 		Jobs: map[string]Job{
 			"test-job": {Cmd: "go", Params: []string{"test"}},
@@ -58,7 +58,7 @@ func TestWatch_Save(t *testing.T) {
 	}
 
 	tempDir := t.TempDir()
-	filePath := filepath.Join(tempDir, "watch.yml")
+	filePath := filepath.Join(tempDir, "vai.yml")
 
 	err := w.Save(filePath)
 	if err != nil {
@@ -70,21 +70,21 @@ func TestWatch_Save(t *testing.T) {
 		t.Fatalf("Failed to read saved file: %v", err)
 	}
 
-	var loadedWatch Watch
-	if err := yaml.Unmarshal(data, &loadedWatch); err != nil {
+	var loadedVai Vai
+	if err := yaml.Unmarshal(data, &loadedVai); err != nil {
 		t.Fatalf("Failed to unmarshal saved data: %v", err)
 	}
 
-	if !reflect.DeepEqual(w.Config, loadedWatch.Config) {
-		t.Errorf("Saved config does not match original. Got %+v, want %+v", loadedWatch.Config, w.Config)
+	if !reflect.DeepEqual(w.Config, loadedVai.Config) {
+		t.Errorf("Saved config does not match original. Got %+v, want %+v", loadedVai.Config, w.Config)
 	}
-	if !reflect.DeepEqual(w.Jobs, loadedWatch.Jobs) {
-		t.Errorf("Saved jobs do not match original. Got %+v, want %+v", loadedWatch.Jobs, w.Jobs)
+	if !reflect.DeepEqual(w.Jobs, loadedVai.Jobs) {
+		t.Errorf("Saved jobs do not match original. Got %+v, want %+v", loadedVai.Jobs, w.Jobs)
 	}
 }
 
 func TestAggregateRegex(t *testing.T) {
-	watch := &Watch{
+	vai := &Vai{
 		Jobs: map[string]Job{
 			"job1": {
 				On: &On{Regex: []string{"\\.go$", "!\\.test\\.go$", "\\.mod$"}},
@@ -99,7 +99,7 @@ func TestAggregateRegex(t *testing.T) {
 		},
 	}
 
-	inc, exc := aggregateRegex(watch)
+	inc, exc := aggregateRegex(vai)
 
 	sort.Strings(inc)
 	sort.Strings(exc)

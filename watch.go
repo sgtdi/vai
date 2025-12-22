@@ -10,8 +10,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Watch contains watch fields
-type Watch struct {
+// Vai contains vai fields
+type Vai struct {
 	Config     Config            `yaml:"config"`
 	Jobs       map[string]Job    `yaml:"jobs"`
 	jobManager *JobManager       `yaml:"-"`
@@ -19,7 +19,7 @@ type Watch struct {
 }
 
 // Save writes to a YAML file
-func (w *Watch) Save(filePath string) error {
+func (w *Vai) Save(filePath string) error {
 	data, err := yaml.Marshal(w)
 	if err != nil {
 		return err
@@ -28,7 +28,7 @@ func (w *Watch) Save(filePath string) error {
 }
 
 // SetDefaults applies default values
-func (w *Watch) SetDefaults() {
+func (w *Vai) SetDefaults() {
 	if w.Config.Path == "" {
 		w.Config.Path = "."
 	}
@@ -50,11 +50,11 @@ func (w *Watch) SetDefaults() {
 }
 
 // aggregateRegex collects all unique regex patterns from all jobs
-func aggregateRegex(watch *Watch) (incPatterns, excPatterns []string) {
+func aggregateRegex(vai *Vai) (incPatterns, excPatterns []string) {
 	incRegexMap := make(map[string]struct{})
 	excRegexMap := make(map[string]struct{})
 
-	for _, job := range watch.Jobs {
+	for _, job := range vai.Jobs {
 		if job.On != nil {
 			for _, rx := range job.On.Regex {
 				if trimmedRx, found := strings.CutPrefix(rx, "!"); found {
@@ -80,7 +80,7 @@ func aggregateRegex(watch *Watch) (incPatterns, excPatterns []string) {
 }
 
 // startWatch dispatches events to the appropriate jobs
-func startWatch(w *Watch) {
+func startWatch(ctx context.Context, w *Vai) {
 	var err error
 	var jobNames []string
 	for jobName := range w.Jobs {
@@ -92,15 +92,15 @@ func startWatch(w *Watch) {
 	Log(SeverityInfo, "Running jobs on startup...")
 	for jobName, job := range w.Jobs {
 		Logf(SeveritySuccess, "Triggering job: %s%s%s", ColorGreen, jobName, ColorReset)
-		ctx, deregister := w.jobManager.Register(jobName)
+		jobCtx, deregister := w.jobManager.Register(jobName, w.Config.Debug)
 		go func(j Job) {
 			defer deregister()
-			Execute(ctx, j)
+			Execute(jobCtx, j)
 		}(job)
 	}
 
 	if w.Config.Path == "" {
-		Log(SeverityWarn, "No path defined, nothing to watch.")
+		Log(SeverityWarn, "No path defined, nothing to vai.")
 		return
 	}
 
@@ -137,31 +137,40 @@ func startWatch(w *Watch) {
 	go func() {
 		for {
 			select {
-			case event := <-w.fswatcher.Events():
+			case <-ctx.Done():
+				return
+			case event, ok := <-w.fswatcher.Events():
+				if !ok {
+					return
+				}
 				ClearConsole()
 				Logf(SeveritySuccess, "Change detected: %s%s%s", ColorGreen, event.Path, ColorReset)
 				// Dispatch the event
 				dispatch(event.Path, w)
-			case err := <-w.fswatcher.Dropped():
+			case err, ok := <-w.fswatcher.Dropped():
+				if !ok {
+					return
+				}
 				Logf(SeverityError, "Watch error: %v", err)
 			}
 		}
 	}()
 
 	// Start watching
-	ctx := context.Background()
 	if err := w.fswatcher.Watch(ctx); err != nil {
-		Logf(SeverityError, "Failed to start watch: %v", err)
+		Logf(SeverityError, "Failed to start vai: %v", err)
 	}
 
 	// Add the global path
 	if err := w.fswatcher.AddPath(w.Config.Path); err != nil {
-		Logf(SeverityError, "Failed to watch path %s: %v", w.Config.Path, err)
+		if ctx.Err() == nil {
+			Logf(SeverityError, "Failed to vai path %s: %v", w.Config.Path, err)
+		}
 	}
 }
 
 // dispatch checks an event and triggers the ones that match
-func dispatch(eventPath string, w *Watch) {
+func dispatch(eventPath string, w *Vai) {
 	if len(w.Jobs) == 0 {
 		if w.Config.Debug {
 			Logf(SeverityWarn, "No jobs to dispatch event to")
@@ -177,7 +186,7 @@ func dispatch(eventPath string, w *Watch) {
 			continue
 		}
 
-		// Check if the event path is in job's watch paths
+		// Check if the event path is in job's vai paths
 		pathMatch := false
 		for _, watchPath := range w.fswatcher.Paths() {
 			if strings.HasPrefix(eventPath, watchPath) {
@@ -188,7 +197,7 @@ func dispatch(eventPath string, w *Watch) {
 
 		if !pathMatch {
 			if w.Config.Debug {
-				Logf(SeverityWarn, "Skipping job '%s': event path '%s' is not in watch paths %v", jobName, eventPath, w.fswatcher.Paths())
+				Logf(SeverityWarn, "Skipping job '%s': event path '%s' is not in vai paths %v", jobName, eventPath, w.fswatcher.Paths())
 			}
 			continue
 		}
@@ -197,7 +206,7 @@ func dispatch(eventPath string, w *Watch) {
 		Logf(SeveritySuccess, "Triggering job: %s%s%s", ColorGreen, jobName, ColorReset)
 
 		// Register the job
-		ctx, deregister := w.jobManager.Register(jobName)
+		ctx, deregister := w.jobManager.Register(jobName, w.Config.Debug)
 
 		// Run the job
 		go func(j Job) {
