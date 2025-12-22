@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -133,6 +134,13 @@ func startWatch(ctx context.Context, w *Vai) {
 		return
 	}
 
+	// Get the current working directory to display relative paths
+	cwd, err := os.Getwd()
+	if err != nil {
+		Logf(SeverityWarn, "Could not get current working directory: %v", err)
+		cwd = "" // Ensure cwd is empty on error
+	}
+
 	// Start the event listener
 	go func() {
 		for {
@@ -144,7 +152,16 @@ func startWatch(ctx context.Context, w *Vai) {
 					return
 				}
 				ClearConsole()
-				Logf(SeveritySuccess, "Change detected: %s%s%s", ColorGreen, event.Path, ColorReset)
+
+				// Determine the path to display
+				displayPath := event.Path
+				if cwd != "" {
+					if relPath, err := filepath.Rel(cwd, event.Path); err == nil {
+						displayPath = relPath
+					}
+				}
+
+				Logf(SeveritySuccess, "Change detected: %s%s%s", ColorGreen, displayPath, ColorReset)
 				// Dispatch the event
 				dispatch(event.Path, w)
 			case err, ok := <-w.fswatcher.Dropped():
