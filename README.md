@@ -1,5 +1,3 @@
-*The project was renamed from `watch` to `Vai` to avoid a name conflict with the standard `watch` command on Linux systems.*
-
 **`Vai` is the only hot reload system for Go that integrates its own file watcher directly, eliminating external dependencies. This streamlined, self-contained design means a shorter and clearer chain of responsibility, making bug tracking and resolution significantly more efficient.**
 
 # vai: Hot reload Go apps and projects

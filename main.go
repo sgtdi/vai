@@ -27,7 +27,7 @@ func main() {
 
 	var cmdFlags []string
 	var positionalArgs []string
-	var path, regex, env, file, save string = ".", "", "", "watch.yml", "watch.yml"
+	var path, regex, env, file, save string = ".", "", "", "vai.yml", "vai.yml"
 	var help, debug, quiet, versionFlag bool
 	var pathIsSet, saveIsSet bool
 
@@ -206,7 +206,7 @@ func handleConfig(cmdFlags []string, positionalArgs []string, path string, pathI
 		watch = FromCLI(seriesCmds, singleCmd, path, patterns, envMap)
 	} else {
 		// Fallback to config with no cmds
-		isDefaultConfig := filePath == "watch.yml"
+		isDefaultConfig := filePath == "vai.yml"
 		if !isDefaultConfig || fileExists(filePath) {
 			watch, err = FromFile(filePath, path, pathIsSet)
 			if err != nil {
@@ -331,12 +331,12 @@ func handleHelp(helpFlag bool) {
 	}
 
 	fmt.Printf("%sUsage:%s vai %s[flags]%s %s[command...]...%s\n", ColorYellow, ColorReset, ColorCyan, ColorReset, ColorCyan, ColorReset)
-	fmt.Printf("   or: watch %s--file%s <file>\n", ColorCyan, ColorReset)
+	fmt.Printf("   or: vai %s--file%s <file>\n", ColorCyan, ColorReset)
 	fmt.Println("\nA tool to run commands when files change, configured via CLI or a YAML file.")
 
 	fmt.Printf("\n%sConfiguration Modes:%s\n", ColorYellow, ColorReset)
-	fmt.Printf("  1. %sCLI Mode:%s Provide a command directly (e.g., `watch go run .`).\n", ColorWhite, ColorReset)
-	fmt.Printf("  2. %sFile Mode:%s Use a YAML file for complex workflows (e.g., `watch --file watch.yml`).\n", ColorWhite, ColorReset)
+	fmt.Printf("  1. %sCLI Mode:%s Provide a command directly (e.g., `vai go run .`).\n", ColorWhite, ColorReset)
+	fmt.Printf("  2. %sFile Mode:%s Use a YAML file for complex workflows (e.g., `vai --file vai.yml`).\n", ColorWhite, ColorReset)
 
 	fmt.Printf("\n%sFlags:%s\n", ColorYellow, ColorReset)
 	fmt.Printf("  %s-c, --cmd%s <command>      Command to run. Can be specified multiple times.\n", ColorCyan, ColorReset)
