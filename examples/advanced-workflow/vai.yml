@@ -1,0 +1,33 @@
+# This workflow demonstrates a more complex setup with multiple jobs,parallel execution, and different triggers for application code vs. tests
+
+jobs:
+  run-app:
+    on:
+      regex:
+        - ".*\\.go$"
+        - "!.*_test.go$" # Exclude test files
+    series:
+      # Format the code
+      - name: "Format code"
+        cmd: "go"
+        params: ["fmt", "./..."]
+      # Then, run the application
+      - name: "Run application"
+        cmd: "go"
+        params: ["run", "."]
+
+  # Run quality checks
+  test-and-lint:
+    on:
+      regex:
+        - ".*_test.go$"
+    parallel:
+      - name: "Run tests"
+        cmd: "go"
+        params: ["test", "-v", "./..."]
+      - name: "Vet code"
+        cmd: "go"
+        params: ["vet", "./..."]
+      - name: "Run linter"
+        cmd: "golangci-lint"
+        params: ["run"]
