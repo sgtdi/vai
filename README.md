@@ -1,4 +1,4 @@
-*The project was renamed from `watch` to `vai` to avoid a name conflict with the standard `watch` command on Linux systems.*
+*The project was renamed from `watch` to `Vai` to avoid a name conflict with the standard `watch` command on Linux systems.*
 
 **`Vai` is the only hot reload system for Go that integrates its own file watcher directly, eliminating external dependencies. This streamlined, self-contained design means a shorter and clearer chain of responsibility, making bug tracking and resolution significantly more efficient.**
 
@@ -12,9 +12,9 @@
 
 Automatic **hot reload** for **Go** development. Zero configuration CLI tool for Go developers seeking instant feedback and automated workflows.
 
-`vai` is a lightweight, zero-dependency **CLI tool** that automatically rebuilds and restarts your Go applications when files change. Perfect for Go web development, microservices, REST APIs, and any Go project requiring rapid iteration.
+`Vai` is a lightweight, zero-dependency **CLI tool** that automatically rebuilds and restarts your Go applications when files change. Perfect for Go web development, microservices, REST APIs, and any Go project requiring rapid iteration.
 
-Stop the tedious **cycle of manually stopping, rebuilding, and restarting** your project. `vai` automates this process, giving you instant feedback on every file change and commands execution. It's built for developers who value speed and simplicity, offering a **seamless, configuration-free experience** right out of the box.
+Stop the tedious **cycle of manually stopping, rebuilding, and restarting** your project. `Vai` automates this process, giving you instant feedback on every file change and commands execution. It's built for developers who value speed and simplicity, offering a **seamless, configuration-free experience** right out of the box.
 
 ## Index
 
@@ -37,11 +37,11 @@ Stop the tedious **cycle of manually stopping, rebuilding, and restarting** your
 - ⚙️ Environment vars: Easy injection of environment variables for different development scenarios
 - 🔄 Sequential & Parallel Execution: Run multiple commands in series or parallel for comprehensive workflows
 
-## Why `vai`?
+## Why `Vai`?
 
 -   **Hot reload**: Seamlessly rebuilds and restarts your Go application the moment you save a file, keeping your development flow uninterrupte
 -   **Workflow**: Start instantly with a single command, or orchestrate complex, multi-step tasks with an optional `vai.yml`
--   **No external dependencies:**: `vai` is a self-contained executable powered by our own [`fswatcher`](https://github.com/sgtdi/fswatcher) library for reliable, high-performance file monitoring
+-   **No external dependencies:**: `Vai` is a self-contained executable powered by our own [`fswatcher`](https://github.com/sgtdi/fswatcher) library for reliable, high-performance file monitoring
 -   **Ready to use:** Ready by default for Go projects, allowing you to start hot-reloading from the CLI without writing a single line of configuration
 
 ## Installation
@@ -61,7 +61,7 @@ The tool can be configured in two ways:
 
 ### CLI mode
 
-`vai` follows a simple syntax: `vai [flags] [commands]`.
+`Vai` follows a simple syntax: `vai [flags] [commands]`.
 
 #### Flags
 
@@ -82,7 +82,7 @@ The tool can be configured in two ways:
 Here are some practical examples of how to use `vai` from the command line.
 
 **1. Basic Go hot reload**
-The most common use case. `vai` will monitor all `.go` files, `go.mod`, and `go.sum` in the current directory and restart the application on any change.
+The most common use case. `Vai` will monitor all `.go` files, `go.mod`, and `go.sum` in the current directory and restart the application on any change.
 
 ```sh
 vai go run .
