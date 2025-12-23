@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -21,11 +22,14 @@ type Vai struct {
 
 // Save writes to a YAML file
 func (w *Vai) Save(filePath string) error {
-	data, err := yaml.Marshal(w)
+	var b bytes.Buffer
+	encoder := yaml.NewEncoder(&b)
+	encoder.SetIndent(2)
+	err := encoder.Encode(w)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filePath, data, 0644)
+	return os.WriteFile(filePath, b.Bytes(), 0644)
 }
 
 // SetDefaults applies default values
@@ -34,8 +38,8 @@ func (w *Vai) SetDefaults() {
 		w.Config.Path = "."
 	}
 	for i, job := range w.Jobs {
-		if job.On != nil && len(job.On.Paths) == 0 {
-			job.On.Paths = []string{w.Config.Path}
+		if job.Trigger != nil && len(job.Trigger.Paths) == 0 {
+			job.Trigger.Paths = []string{w.Config.Path}
 			w.Jobs[i] = job
 		}
 	}
@@ -48,6 +52,10 @@ func (w *Vai) SetDefaults() {
 	if w.Config.Cooldown == 0 {
 		w.Config.Cooldown = 100 * time.Millisecond
 	}
+	if w.Config.ClearConsole == nil {
+		clearDefault := true
+		w.Config.ClearConsole = &clearDefault
+	}
 }
 
 // aggregateRegex collects all unique regex patterns from all jobs
@@ -56,8 +64,8 @@ func aggregateRegex(vai *Vai) (incPatterns, excPatterns []string) {
 	excRegexMap := make(map[string]struct{})
 
 	for _, job := range vai.Jobs {
-		if job.On != nil {
-			for _, rx := range job.On.Regex {
+		if job.Trigger != nil {
+			for _, rx := range job.Trigger.Regex {
 				if trimmedRx, found := strings.CutPrefix(rx, "!"); found {
 					excRegexMap[trimmedRx] = struct{}{}
 				} else {
@@ -87,16 +95,21 @@ func startWatch(ctx context.Context, w *Vai) {
 	for jobName := range w.Jobs {
 		jobNames = append(jobNames, jobName)
 	}
-	Logf(SeveritySuccess, "Jobs successfully imported: %s%s%s", ColorGreen, strings.Join(jobNames, ", "), ColorReset)
 
+	if w.Config.Debug {
+		Logf(SeveritySuccess, "Jobs successfully imported: %s%s%s", ColorGreen, strings.Join(jobNames, ", "), ColorReset)
+	}
 	// Run jobs on startup
-	Log(SeverityInfo, "Running jobs on startup...")
+	Log(SeverityInfo, "Running jobs...")
 	for jobName, job := range w.Jobs {
-		Logf(SeveritySuccess, "Triggering job: %s%s%s", ColorGreen, jobName, ColorReset)
+		if w.Config.Debug {
+			Logf(SeveritySuccess, "Triggering job: %s%s%s", ColorGreen, jobName, ColorReset)
+		}
 		jobCtx, deregister := w.jobManager.Register(jobName, w.Config.Debug)
+		job.Name = jobName
 		go func(j Job) {
 			defer deregister()
-			Execute(jobCtx, j)
+			Execute(jobCtx, j, w.Config.Debug)
 		}(job)
 	}
 
@@ -124,7 +137,7 @@ func startWatch(ctx context.Context, w *Vai) {
 		opts = append(opts, fswatcher.WithExcRegex(excRegex...))
 	}
 	if w.Config.Debug {
-		opts = append(opts, fswatcher.WithLogSeverity(fswatcher.SeverityDebug))
+		opts = append(opts, fswatcher.WithLogSeverity(fswatcher.SeverityError))
 		opts = append(opts, fswatcher.WithLogFile("debug.log"))
 	}
 
@@ -151,17 +164,19 @@ func startWatch(ctx context.Context, w *Vai) {
 				if !ok {
 					return
 				}
-				ClearConsole()
+				if *w.Config.ClearConsole {
+					ClearConsole()
+				}
 
 				// Determine the path to display
 				displayPath := event.Path
-				if cwd != "" {
+				if len(cwd) > 0 {
 					if relPath, err := filepath.Rel(cwd, event.Path); err == nil {
 						displayPath = relPath
 					}
 				}
 
-				Logf(SeveritySuccess, "Change detected: %s%s%s", ColorGreen, displayPath, ColorReset)
+				Logf(SeverityChange, "Change detected: %s", displayPath)
 				// Dispatch the event
 				dispatch(event.Path, w)
 			case err, ok := <-w.fswatcher.Dropped():
@@ -196,7 +211,7 @@ func dispatch(eventPath string, w *Vai) {
 	}
 
 	for jobName, job := range w.Jobs {
-		if job.On == nil || len(job.On.Paths) == 0 {
+		if job.Trigger == nil || len(job.Trigger.Paths) == 0 {
 			if w.Config.Debug {
 				Logf(SeverityWarn, "Skipping job '%s': no paths defined", jobName)
 			}
@@ -220,15 +235,18 @@ func dispatch(eventPath string, w *Vai) {
 		}
 
 		// Job is a match
-		Logf(SeveritySuccess, "Triggering job: %s%s%s", ColorGreen, jobName, ColorReset)
+		if w.Config.Debug {
+			Logf(SeveritySuccess, "Triggering job: %s%s%s", ColorGreen, jobName, ColorReset)
+		}
 
 		// Register the job
 		ctx, deregister := w.jobManager.Register(jobName, w.Config.Debug)
+		job.Name = jobName
 
 		// Run the job
 		go func(j Job) {
 			defer deregister() // Deregister on complete
-			Execute(ctx, j)
+			Execute(ctx, j, w.Config.Debug)
 		}(job)
 	}
 }

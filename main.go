@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// Config options for file vai.yaml
+// Config options for file vai.yml
 type Config struct {
 	Path             string        `yaml:"path"`
 	BufferSize       int           `yaml:"bufferSize"`
@@ -18,6 +18,7 @@ type Config struct {
 	Cooldown         time.Duration `yaml:"cooldown"`
 	BatchingDuration time.Duration `yaml:"batchingDuration"`
 	Debug            bool          `yaml:"debug,omitempty"`
+	ClearConsole     *bool         `yaml:"clearConsole,omitempty"`
 }
 
 var version = "1.1.0"
@@ -27,18 +28,18 @@ func main() {
 
 	var cmdFlags []string
 	var positionalArgs []string
-	var path, regex, env, file, save string = ".", "", "", "vai.yml", "vai.yml"
-	var help, debug, quiet, versionFlag bool
-	var pathIsSet, saveIsSet bool
+	var path, regex, env, configFile, saveFile string = ".", "", "", "vai.yml", "vai.yml"
+	var help, debug, quiet, versionFlag, saveIsSet bool
+	var pathIsSet bool
 
 	knownFlagsWithArg := map[string]bool{
-		"cmd": true, "path": true, "env": true, "regex": true, "save": true, "file": true,
+		"cmd": true, "path": true, "env": true, "regex": true,
 	}
 	knownBoolFlags := map[string]bool{
-		"help": true, "debug": true, "quiet": true, "version": true,
+		"help": true, "debug": true, "quiet": true, "version": true, "save": true,
 	}
 	shortFlags := map[string]string{
-		"c": "cmd", "p": "path", "e": "env", "r": "regex", "s": "save", "f": "file",
+		"c": "cmd", "p": "path", "e": "env", "r": "regex", "s": "save",
 		"h": "help", "d": "debug", "q": "quiet", "v": "version",
 	}
 
@@ -95,11 +96,6 @@ func main() {
 						regex = value
 					case "env":
 						env = value
-					case "file":
-						file = value
-					case "save":
-						save = value
-						saveIsSet = true
 					}
 					i++
 				}
@@ -113,6 +109,8 @@ func main() {
 					quiet = true
 				case "version":
 					versionFlag = true
+				case "save":
+					saveIsSet = true
 				}
 			}
 		} else {
@@ -138,13 +136,15 @@ func main() {
 		pathIsSet,
 		regex,
 		env,
-		file,
+		configFile,
 		help,
 		debug,
 		quiet,
 	)
 
-	Log(SeverityInfo, "Starting file watch...")
+	if debug {
+		Log(SeverityInfo, "Starting file watching...")
+	}
 	watch.jobManager = NewJobManager()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -155,7 +155,9 @@ func main() {
 	signal.Notify(sigChan, os.Interrupt)
 	go func() {
 		<-sigChan
-		Log(SeverityInfo, "Shutdown signal received.")
+		if watch.Config.Debug {
+			Log(SeverityInfo, "Shutdown signal received.")
+		}
 		cancel()
 	}()
 
@@ -173,23 +175,23 @@ func main() {
 	// Wait for the watcher to finish
 	wg.Wait()
 
-	Log(SeverityInfo, "Shutting down. Stopping all running jobs...")
+	Log(SeverityInfo, "Shutting down...")
 	watch.jobManager.StopAll(watch.Config.Debug)
 
 	if saveIsSet {
-		Logf(SeverityInfo, "Saving configuration to %s on exit...", save)
-		if err := watch.Save(save); err != nil {
-			Logf(SeverityError, "Failed to save config file on exit: %v", err)
-		} else {
-			Log(SeveritySuccess, "Configuration saved successfully.")
+		if watch.Config.Debug {
+			Logf(SeverityInfo, "Saving configuration to %s...", saveFile)
+		}
+		if err := watch.Save(saveFile); err != nil {
+			Logf(SeverityError, "Failed to save config file: %v", err)
+		} else if watch.Config.Debug {
+			Log(SeveritySuccess, "Configuration saved successfully")
 		}
 	}
-
-	Log(SeverityInfo, "Vai shutting down")
 }
 
 // handleConfig parse config struct with all possible flags and args
-func handleConfig(cmdFlags []string, positionalArgs []string, path string, pathIsSet bool, regex, env, filePath string, help, debug, quiet bool) *Vai {
+func handleConfig(cmdFlags []string, positionalArgs []string, path string, pathIsSet bool, regex, env, configFile string, help, debug, quiet bool) *Vai {
 	// Set quiet flag
 	isQuiet = quiet
 	// Handle help flag
@@ -206,13 +208,13 @@ func handleConfig(cmdFlags []string, positionalArgs []string, path string, pathI
 		watch = FromCLI(seriesCmds, singleCmd, path, patterns, envMap)
 	} else {
 		// Fallback to config with no cmds
-		isDefaultConfig := filePath == "vai.yml"
-		if !isDefaultConfig || fileExists(filePath) {
-			watch, err = FromFile(filePath, path, pathIsSet)
+		if fileExists(configFile) {
+			watch, err = FromFile(configFile, path, pathIsSet)
 			if err != nil {
 				Logf(SeverityError, "Failed to load config file: %v", err)
 				os.Exit(1)
 			}
+			Logf(SeverityInfo, "Using config %s%s%s", ColorCyan, configFile, ColorReset)
 		} else {
 			// If none show help
 			Log(SeverityError, "No config file found and no command given.")
@@ -250,12 +252,12 @@ func printConfig(w *Vai) {
 		fmt.Printf("\n%s--- Jobs ---%s\n", ColorYellow, ColorReset)
 		for name, job := range w.Jobs {
 			fmt.Printf("%s- Job:%s %s\n", ColorCyan, ColorReset, name)
-			if job.On != nil {
-				if len(job.On.Paths) > 0 {
-					fmt.Printf("  %s- Watch Paths:%s %s\n", ColorCyan, ColorReset, strings.Join(job.On.Paths, ", "))
+			if job.Trigger != nil {
+				if len(job.Trigger.Paths) > 0 {
+					fmt.Printf("  %s- Watch Paths:%s %s\n", ColorCyan, ColorReset, strings.Join(job.Trigger.Paths, ", "))
 				}
-				if len(job.On.Regex) > 0 {
-					fmt.Printf("  %s- Inclusion Regex:%s %s\n", ColorCyan, ColorReset, strings.Join(job.On.Regex, ", "))
+				if len(job.Trigger.Regex) > 0 {
+					fmt.Printf("  %s- Inclusion Regex:%s %s\n", ColorCyan, ColorReset, strings.Join(job.Trigger.Regex, ", "))
 				}
 			}
 
@@ -331,20 +333,18 @@ func handleHelp(helpFlag bool) {
 	}
 
 	fmt.Printf("%sUsage:%s vai %s[flags]%s %s[command...]...%s\n", ColorYellow, ColorReset, ColorCyan, ColorReset, ColorCyan, ColorReset)
-	fmt.Printf("   or: vai %s--file%s <file>\n", ColorCyan, ColorReset)
-	fmt.Println("\nA tool to run commands when files change, configured via CLI or a YAML file.")
+	fmt.Println("\nA tool to run commands when files change, configured via CLI or a vai.yml file.")
 
 	fmt.Printf("\n%sConfiguration Modes:%s\n", ColorYellow, ColorReset)
 	fmt.Printf("  1. %sCLI Mode:%s Provide a command directly (e.g., `vai go run .`).\n", ColorWhite, ColorReset)
-	fmt.Printf("  2. %sFile Mode:%s Use a YAML file for complex workflows (e.g., `vai --file vai.yml`).\n", ColorWhite, ColorReset)
+	fmt.Printf("  2. %sFile Mode:%s Use a vai.yml file for complex workflows (e.g., `vai`).\n", ColorWhite, ColorReset)
 
 	fmt.Printf("\n%sFlags:%s\n", ColorYellow, ColorReset)
 	fmt.Printf("  %s-c, --cmd%s <command>      Command to run. Can be specified multiple times.\n", ColorCyan, ColorReset)
 	fmt.Printf("  %s-p, --path%s <path>        Path to watch. (default: .)\n", ColorCyan, ColorReset)
 	fmt.Printf("  %s-e, --env%s <vars>         KEY=VALUE environment variables.\n", ColorCyan, ColorReset)
 	fmt.Printf("  %s-r, --regex%s <patterns>   Glob patterns to watch.\n", ColorCyan, ColorReset)
-	fmt.Printf("  %s-s, --save%s <file>        Save CLI flags to a new YAML file and exit.\n", ColorCyan, ColorReset)
-	fmt.Printf("  %s-f, --file%s <file>        Load configuration from a YAML file.\n", ColorCyan, ColorReset)
+	fmt.Printf("  %s-s, --save%s               Save CLI flags to a new vai.yml file and exit.\n", ColorCyan, ColorReset)
 	fmt.Printf("  %s-q, --quiet%s              Disable all logging output.\n", ColorCyan, ColorReset)
 	fmt.Printf("  %s-h, --help%s               Show this help message.\n", ColorCyan, ColorReset)
 	os.Exit(0)

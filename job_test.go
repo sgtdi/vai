@@ -31,7 +31,7 @@ series:
   - cmd: "./app"
 env:
   APP_ENV: "development"
-on:
+trigger:
   regex:
     - '\.go$'
 `
@@ -50,8 +50,8 @@ on:
 			t.Errorf("Expected APP_ENV to be 'development', got '%s'", job.Env["APP_ENV"])
 		}
 		// The expected value in Go is an unescaped string.
-		if len(job.On.Regex) != 1 || job.On.Regex[0] != `\.go$` {
-			t.Errorf("Expected regex '\\.go$', got '%v'", job.On.Regex)
+		if len(job.Trigger.Regex) != 1 || job.Trigger.Regex[0] != `\.go$` {
+			t.Errorf("Expected regex '\\.go$', got '%v'", job.Trigger.Regex)
 		}
 	})
 
@@ -92,8 +92,8 @@ func TestFromCLI(t *testing.T) {
 		if job.Env["PORT"] != "8080" {
 			t.Errorf("Expected env PORT=8080, got '%s'", job.Env["PORT"])
 		}
-		if !reflect.DeepEqual(job.On.Regex, patterns) {
-			t.Errorf("Expected regex patterns '%v', got '%v'", patterns, job.On.Regex)
+		if !reflect.DeepEqual(job.Trigger.Regex, patterns) {
+			t.Errorf("Expected regex patterns '%v', got '%v'", patterns, job.Trigger.Regex)
 		}
 	})
 

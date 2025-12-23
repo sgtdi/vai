@@ -32,13 +32,24 @@ func (jm *JobManager) Register(jobName string, debug bool) (context.Context, fun
 
 	// Stop previously running job with the same name
 	if job, ok := jm.running[jobName]; ok {
-		Logf(SeverityInfo, "Stopping previously running job: %s", jobName)
+		if debug {
+			Logf(SeverityInfo, "JobManager: Stopping previously running job: %s", jobName)
+		}
 		job.cancel()
-		stopCommand(jobName, debug)
+		if debug {
+			Logf(SeverityInfo, "JobManager: Calling stopCommand for %s", jobName)
+		}
+		<-stopCommand(jobName, debug)
+		if debug {
+			Logf(SeverityInfo, "JobManager: stopCommand for %s finished", jobName)
+		}
 	}
 
 	// Create a new job instance
 	ctx, cancel := context.WithCancel(context.Background())
+	if debug {
+		Logf(SeverityInfo, "JobManager: Creating new context for job: %s", jobName)
+	}
 
 	// Assign a unique ID
 	jm.nextID++
@@ -65,9 +76,16 @@ func (jm *JobManager) StopAll(debug bool) {
 	jm.mu.Lock()
 	defer jm.mu.Unlock()
 
+	var stoppedChs []<-chan struct{}
 	for name, job := range jm.running {
-		Logf(SeverityInfo, "Stopping job on exit: %s", name)
+		if debug {
+			Logf(SeverityInfo, "JobManager: Stopping job on exit: %s", name)
+		}
 		job.cancel()
-		stopCommand(name, debug)
+		stoppedChs = append(stoppedChs, stopCommand(name, debug))
+	}
+
+	for _, ch := range stoppedChs {
+		<-ch
 	}
 }

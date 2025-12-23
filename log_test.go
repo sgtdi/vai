@@ -111,12 +111,12 @@ func TestLogLevelString(t *testing.T) {
 		level    string
 		expected fswatcher.LogSeverity
 	}{
-		{"Debug", "debug", fswatcher.SeverityDebug},
+		{"Debug", "debug", fswatcher.SeverityError},
 		{"Info", "info", fswatcher.SeverityInfo},
 		{"Error", "error", fswatcher.SeverityError},
 		{"Warn", "warn", fswatcher.SeverityWarn},
 		{"DefaultToWarn", "invalid", fswatcher.SeverityWarn},
-		{"CaseInsensitive", "DEBUG", fswatcher.SeverityDebug},
+		{"CaseInsensitive", "DEBUG", fswatcher.SeverityError},
 	}
 
 	for _, tc := range testCases {

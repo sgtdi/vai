@@ -87,14 +87,14 @@ func TestAggregateRegex(t *testing.T) {
 	vai := &Vai{
 		Jobs: map[string]Job{
 			"job1": {
-				On: &On{Regex: []string{"\\.go$", "!\\.test\\.go$", "\\.mod$"}},
+				Trigger: &Trigger{Regex: []string{"\\.go$", "!\\.test\\.go$", "\\.mod$"}},
 			},
 			"job2": {
-				On: &On{Regex: []string{"\\.html$", "!\\.test\\.go$"}},
+				Trigger: &Trigger{Regex: []string{"\\.html$", "!\\.test\\.go$"}},
 			},
 			"job3": {},
 			"job4": {
-				On: &On{Regex: []string{"\\.go$"}},
+				Trigger: &Trigger{Regex: []string{"\\.go$"}},
 			},
 		},
 	}

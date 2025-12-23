@@ -69,7 +69,6 @@ The tool can be configured in two ways:
 | `--path`                                                     | `-p`  | Path to vai for changes.                                                | `.`                                                     |
 | `--regex`                                                    | `-r`  | Comma-separated list of regex patterns for files to vai.                | `".*\\.go$", "^go\\.mod$", "^go\\.sum$"`                  |
 | `--env`                                                      | `-e`  | Comma-separated list of `KEY=VALUE` pairs to set as environment variables.| (none)                                                  |
-| `--file`                                                     | `-f`  | Load configuration from a YAML file instead of using CLI flags.           | `vai.yml`                                             |
 | `--save`                                                     | `-s`  | Save the current CLI flags to a new YAML configuration file.              | (none)                                                  |
 | `--debug`                                                    | `-d`  | Enable debug mode to print detailed configuration and event information.  | `false`                                                 |
 | `--quiet`                                                    | `-q`  | Disable all logging output, showing only command results.                 | `false`                                                 |
@@ -108,12 +107,12 @@ vai --regex=".*\\.go$,.*\\.html$" go run .
 ```
 
 **5. Save a command to a `vai.yml` file**
-If a command gets too long, you can save it to a configuration file for easier reuse. This command creates a `dev.yml` file with the specified settings.
+If a command gets too long, you can save it to a `vai.yml` file for easier reuse. This command creates a `vai.yml` file with the specified settings.
 
 ```sh
-vai --path=./src --regex=".*\\.go$" --save dev.yml go run .
+vai --path=./src --regex=".*\\.go$" --save go run .
 ```
-You can then run it with `vai --file dev.yml`.
+You can then run it with just `vai`.
 
 **6. Chaining multiple commands**
 Run a linter before executing your main application to catch errors early. `vai` will run the commands in sequence.
@@ -133,6 +132,7 @@ config:
   path: .
   cooldown: 100ms
   logLevel: info
+  clearConsole: true
 
 jobs:
   # This job runs the main application on changes to Go files

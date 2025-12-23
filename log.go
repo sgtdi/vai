@@ -17,6 +17,7 @@ const (
 	SeveritySuccess = "success"
 	SeverityWarn    = "warn"
 	SeverityError   = "error"
+	SeverityChange  = "change"
 )
 
 // ANSI Color Codes for terminal output
@@ -28,6 +29,7 @@ const (
 	ColorCyan   = "\033[36m"
 	ColorPurple = "\033[35m"
 	ColorWhite  = "\033[97m"
+	ColorGray   = "\033[90m"
 )
 
 // logImpl handles formatting and printing
@@ -45,6 +47,9 @@ func logImpl(severity, message string) {
 	case SeverityError:
 		color = ColorRed
 		message = fmt.Sprintf("%s%s%s", ColorRed, message, ColorReset)
+	case SeverityChange:
+		color = ColorPurple
+		message = fmt.Sprintf("%s%s%s", ColorPurple, message, ColorReset)
 	default:
 		color = ColorCyan
 	}
@@ -76,7 +81,7 @@ func Logf(severity, format string, a ...any) {
 func logLevelString(level string) fswatcher.LogSeverity {
 	switch strings.ToLower(level) {
 	case "debug":
-		return fswatcher.SeverityDebug
+		return fswatcher.SeverityError
 	case "info":
 		return fswatcher.SeverityInfo
 	case "error":

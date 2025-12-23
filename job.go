@@ -9,7 +9,7 @@ import (
 
 // Job is the unified struct for any unit of work
 type Job struct {
-	Name     string            `yaml:"name,omitempty"`
+	Name     string            `yaml:"-"`
 	Cmd      string            `yaml:"cmd,omitempty"`
 	Params   []string          `yaml:"params,omitempty"`
 	Series   []Job             `yaml:"series,omitempty"`
@@ -17,11 +17,11 @@ type Job struct {
 	Before   []Job             `yaml:"before,omitempty"`
 	After    []Job             `yaml:"after,omitempty"`
 	Env      map[string]string `yaml:"env,omitempty"`
-	On       *On               `yaml:"on,omitempty"`
+	Trigger  *Trigger          `yaml:"trigger,omitempty"`
 }
 
-// On defines file paths and regex patterns to watch on
-type On struct {
+// Trigger defines file paths and regex patterns to watch on
+type Trigger struct {
 	Paths []string `yaml:"paths,omitempty"`
 	Regex []string `yaml:"regex,omitempty"`
 }
@@ -35,6 +35,10 @@ func FromFile(filePath string, path string, pathIsSet bool) (*Vai, error) {
 	var vai Vai
 	if err := yaml.Unmarshal(data, &vai); err != nil {
 		return nil, err
+	}
+	for name, job := range vai.Jobs {
+		job.Name = name
+		vai.Jobs[name] = job
 	}
 	// Override the config file's path if the --path flag was explicitly provided
 	if pathIsSet {
@@ -67,10 +71,9 @@ func FromCLI(seriesCmds []string, singleCmd []string, path string, patterns []st
 	}
 
 	jobAction := Job{
-		Name:   "default",
 		Series: taskActions,
 		Env:    env,
-		On: &On{
+		Trigger: &Trigger{
 			Paths: []string{path},
 			Regex: patterns,
 		},
@@ -109,7 +112,7 @@ func (a *Job) UnmarshalYAML(node *yaml.Node) error {
 		Before   []Job             `yaml:"before,omitempty"`
 		After    []Job             `yaml:"after,omitempty"`
 		Env      map[string]string `yaml:"env,omitempty"`
-		On       *On               `yaml:"on,omitempty"`
+		Trigger  *Trigger          `yaml:"trigger,omitempty"`
 	}
 
 	if err := node.Decode(&raw); err != nil {
@@ -140,7 +143,7 @@ func (a *Job) UnmarshalYAML(node *yaml.Node) error {
 	a.Before = raw.Before
 	a.After = raw.After
 	a.Env = raw.Env
-	a.On = raw.On
+	a.Trigger = raw.Trigger
 
 	return nil
 }

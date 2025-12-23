@@ -17,7 +17,7 @@ func TestExecute(t *testing.T) {
 	t.Run("executes a simple command", func(t *testing.T) {
 		job := Job{Cmd: "echo", Params: []string{"hello world"}}
 		output := captureOutput(func() {
-			Execute(context.Background(), job)
+			Execute(context.Background(), job, false)
 		})
 
 		if !strings.Contains(output, "hello world") {
@@ -33,9 +33,8 @@ func TestExecute(t *testing.T) {
 			},
 		}
 		output := captureOutput(func() {
-			Execute(context.Background(), job)
+			Execute(context.Background(), job, false)
 		})
-
 		firstIndex := strings.Index(output, "first")
 		secondIndex := strings.Index(output, "second")
 
@@ -53,7 +52,7 @@ func TestExecute(t *testing.T) {
 		}
 
 		startTime := time.Now()
-		Execute(context.Background(), job)
+		Execute(context.Background(), job, false)
 		duration := time.Since(startTime)
 
 		if duration > 250*time.Millisecond {
@@ -69,7 +68,7 @@ func TestExecute(t *testing.T) {
 			After:  []Job{{Cmd: "echo", Params: []string{"after"}}},
 		}
 		output := captureOutput(func() {
-			Execute(context.Background(), job)
+			Execute(context.Background(), job, false)
 		})
 
 		beforeIndex := strings.Index(output, "before")
@@ -88,7 +87,7 @@ func TestExecute(t *testing.T) {
 
 		var wg sync.WaitGroup
 		wg.Go(func() {
-			Execute(ctx, job)
+			Execute(ctx, job, false)
 		})
 
 		wg.Wait()
@@ -105,7 +104,7 @@ func TestExecute(t *testing.T) {
 			Env:    map[string]string{"TEST_VAR": "hello from env"},
 		}
 		output := captureOutput(func() {
-			runCommand(context.Background(), job)
+			runCommand(context.Background(), job, false)
 		})
 
 		if !strings.Contains(output, "hello from env") {
@@ -118,7 +117,7 @@ func TestExecute(t *testing.T) {
 
 		var wg sync.WaitGroup
 		wg.Go(func() {
-			Execute(context.Background(), job)
+			Execute(context.Background(), job, false)
 		})
 
 		time.Sleep(100 * time.Millisecond)
