@@ -1,4 +1,4 @@
-**`Vai` is the only hot reload system for Go that integrates its own file watcher directly, eliminating external dependencies. This streamlined, self-contained design means a shorter and clearer chain of responsibility, making bug tracking and resolution significantly more efficient.**
+**`Vai` (Italian for "Go!" — literally telling your Go code to *go*) is the only hot reload system for Go that integrates its own file watcher directly, eliminating external dependencies. This streamlined, self-contained design means a shorter and clearer chain of responsibility, making bug tracking and resolution significantly more efficient.**
 
 # vai: Hot reload Go apps and projects
 
@@ -7,6 +7,8 @@
 [![CI](https://github.com/sgtdi/vai/actions/workflows/ci-test.yml/badge.svg)](https://github.com/sgtdi/vai/actions/workflows/ci-test.yml)
 [![CodeQL](https://github.com/sgtdi/vai/actions/workflows/codeql.yml/badge.svg)](https://github.com/sgtdi/vai/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+<img src="https://raw.githubusercontent.com/sgtdi/watch/refs/heads/dev/examples/vai-go-hot-reload.png" width="100%" alt="vai golang hot reload terminal interface">
 
 Automatic **hot reload** for **Go** development. Zero configuration CLI tool for Go developers seeking instant feedback and automated workflows.
 
