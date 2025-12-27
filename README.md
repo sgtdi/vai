@@ -1,4 +1,4 @@
-**`Vai` (Italian for "Go!" — literally telling your Go code to *go*) is the only hot reload system for Go that integrates its own file watcher directly, eliminating external dependencies. This streamlined, self-contained design means a shorter and clearer chain of responsibility, making bug tracking and resolution significantly more efficient.**
+**`Vai` (Italian for "Go!", literally telling your Go code to *go*) is the only hot reload system for Go that integrates its own file watcher directly, eliminating external dependencies. This streamlined, self-contained design means a shorter and clearer chain of responsibility, making bug tracking and resolution significantly more efficient.**
 
 # vai: Hot reload Go apps and projects
 
