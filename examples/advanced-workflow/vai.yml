@@ -2,7 +2,7 @@
 
 jobs:
   run-app:
-    on:
+    trigger:
       regex:
         - ".*\\.go$"
         - "!.*_test.go$" # Exclude test files
@@ -18,7 +18,7 @@ jobs:
 
   # Run quality checks
   test-and-lint:
-    on:
+    trigger:
       regex:
         - ".*_test.go$"
     parallel:

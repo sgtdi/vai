@@ -1,0 +1,34 @@
+config:
+  path: .
+  severity: warn
+  cooldown: 100ms
+  clearCli: false
+  bufferSize: 4096
+  batchingDuration: 0s
+jobs:
+  build-and-test:
+    trigger:
+      paths:
+        - .
+      regex:
+        - ".*\\.go$"
+        - ^go\.mod$
+        - ^go\.sum$
+        - "!^examples/"
+    series:
+      - cmd: go
+        params:
+          - mod
+          - tidy
+      - parallel:
+          - cmd: go
+            params:
+              - test
+              - .
+          - cmd: go
+            params:
+              - fmt
+              - .
+      - cmd: go
+        params:
+          - install

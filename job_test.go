@@ -49,7 +49,7 @@ trigger:
 		if job.Env["APP_ENV"] != "development" {
 			t.Errorf("Expected APP_ENV to be 'development', got '%s'", job.Env["APP_ENV"])
 		}
-		// The expected value in Go is an unescaped string.
+		// The expected value in Go is an unescaped string
 		if len(job.Trigger.Regex) != 1 || job.Trigger.Regex[0] != `\.go$` {
 			t.Errorf("Expected regex '\\.go$', got '%v'", job.Trigger.Regex)
 		}
@@ -128,7 +128,7 @@ jobs:
 		filePath := filepath.Join(tempDir, "vai.yml")
 		os.WriteFile(filePath, []byte(yamlContent), 0644)
 
-		vai, err := FromFile(filePath, "", false)
+		vai, err := FromFile(filePath, "")
 		if err != nil {
 			t.Fatalf("FromFile failed: %v", err)
 		}
@@ -150,7 +150,7 @@ config:
 		filePath := filepath.Join(tempDir, "vai.yml")
 		os.WriteFile(filePath, []byte(yamlContent), 0644)
 
-		vai, err := FromFile(filePath, "/override", true)
+		vai, err := FromFile(filePath, "/override")
 		if err != nil {
 			t.Fatalf("FromFile failed: %v", err)
 		}
@@ -161,7 +161,7 @@ config:
 	})
 
 	t.Run("Return error for non-existent file", func(t *testing.T) {
-		_, err := FromFile("non-existent-file.yml", "", false)
+		_, err := FromFile("non-existent-file.yml", "")
 		if err == nil {
 			t.Fatal("Expected an error for a non-existent file, but got none")
 		}
@@ -173,7 +173,7 @@ config:
 		filePath := filepath.Join(tempDir, "vai.yml")
 		os.WriteFile(filePath, []byte(yamlContent), 0644)
 
-		_, err := FromFile(filePath, "", false)
+		_, err := FromFile(filePath, "")
 		if err == nil {
 			t.Fatal("Expected an error for malformed YAML, but got none")
 		}

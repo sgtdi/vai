@@ -3,128 +3,137 @@ package main
 import (
 	"strings"
 	"testing"
-
-	"github.com/sgtdi/fswatcher"
 )
 
-func TestLogging(t *testing.T) {
-	isQuiet = false
-
+func TestLogger_Log(t *testing.T) {
 	testCases := []struct {
-		name            string
-		severity        string
-		message         string
-		expectedInLog   string
-		expectedColor   string
-		unexpectedColor []string
+		name          string
+		loggerLevel   Severity
+		logLevel      Severity
+		op            Op
+		message       string
+		shouldLog     bool
+		expectedColor string
 	}{
 		{
-			name:            "Log with SeverityInfo",
-			severity:        SeverityInfo,
-			message:         "info message",
-			expectedInLog:   "info message",
-			expectedColor:   "",
-			unexpectedColor: []string{ColorGreen, ColorYellow, ColorRed},
+			name:          "Info log with Info logger",
+			loggerLevel:   SeverityInfo,
+			logLevel:      SeverityInfo,
+			op:            OpInfo,
+			message:       "info message",
+			shouldLog:     true,
+			expectedColor: ColorCyan,
 		},
 		{
-			name:          "Log with SeveritySuccess",
-			severity:      SeveritySuccess,
-			message:       "success message",
-			expectedInLog: "success message",
-			expectedColor: ColorGreen,
+			name:          "Debug log with Info logger (should filter)",
+			loggerLevel:   SeverityInfo,
+			logLevel:      SeverityDebug,
+			op:            OpSuccess,
+			message:       "debug message",
+			shouldLog:     false,
+			expectedColor: "",
 		},
 		{
-			name:          "Log with SeverityWarn",
-			severity:      SeverityWarn,
+			name:          "Warn log with Debug logger",
+			loggerLevel:   SeverityDebug,
+			logLevel:      SeverityWarn,
+			op:            OpWarn,
 			message:       "warn message",
-			expectedInLog: "warn message",
+			shouldLog:     true,
 			expectedColor: ColorYellow,
 		},
 		{
-			name:          "Log with SeverityError",
-			severity:      SeverityError,
+			name:          "Error log with Error logger",
+			loggerLevel:   SeverityError,
+			logLevel:      SeverityError,
+			op:            OpError,
 			message:       "error message",
-			expectedInLog: "error message",
+			shouldLog:     true,
 			expectedColor: ColorRed,
-		},
-		{
-			name:            "Log with Default Severity",
-			severity:        "some-unknown-severity",
-			message:         "default message",
-			expectedInLog:   "default message",
-			expectedColor:   "",
-			unexpectedColor: []string{ColorGreen, ColorYellow, ColorRed},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			l := New(tc.loggerLevel)
 			output := captureOutput(func() {
-				Log(tc.severity, tc.message)
+				l.log(tc.logLevel, tc.op, "%s", tc.message)
 			})
 
-			if !strings.Contains(output, tc.expectedInLog) {
-				t.Errorf("Expected output to contain '%s', but got '%s'", tc.expectedInLog, output)
-			}
-
-			if tc.expectedColor != "" && !strings.Contains(output, tc.expectedColor) {
-				t.Errorf("Expected output to contain color '%s', but it didn't. Got: '%s'", tc.expectedColor, output)
-			}
-
-			for _, color := range tc.unexpectedColor {
-				if strings.Contains(output, color) {
-					t.Errorf("Output contained unexpected color '%s'. Got: '%s'", color, output)
+			if tc.shouldLog {
+				if !strings.Contains(output, tc.message) {
+					t.Errorf("Expected output to contain '%s', but got '%s'", tc.message, output)
+				}
+				if !strings.Contains(output, tc.expectedColor) {
+					t.Errorf("Expected output to contain color code '%s', but got '%s'", tc.expectedColor, output)
+				}
+			} else {
+				if output != "" {
+					t.Errorf("Expected no output, but got '%s'", output)
 				}
 			}
 		})
 	}
+}
 
-	t.Run("Logf for formatted messages", func(t *testing.T) {
+func TestLogger_HelperMethods(t *testing.T) {
+	l := New(SeverityDebug)
+
+	t.Run("Debug", func(t *testing.T) {
 		output := captureOutput(func() {
-			Logf(SeveritySuccess, "formatted %s %d", "message", 123)
+			l.debug(OpSuccess, "debug msg")
 		})
-
-		expected := "formatted message 123"
-		if !strings.Contains(output, expected) {
-			t.Errorf("Expected output to contain '%s', but got '%s'", expected, output)
+		if !strings.Contains(output, "debug msg") {
+			t.Error("Expected debug message to be logged")
 		}
 	})
 
-	t.Run("Logging in quiet mode", func(t *testing.T) {
-		isQuiet = true
-		defer func() { isQuiet = false }()
-
+	t.Run("Info", func(t *testing.T) {
 		output := captureOutput(func() {
-			Log(SeverityInfo, "this should not appear")
-			Logf(SeverityError, "this should also not appear")
+			l.info(OpInfo, "info msg")
 		})
+		if !strings.Contains(output, "info msg") {
+			t.Error("Expected info message to be logged")
+		}
+	})
 
-		if output != "" {
-			t.Errorf("Expected no output in quiet mode, but got '%s'", output)
+	t.Run("Warn", func(t *testing.T) {
+		output := captureOutput(func() {
+			l.warn(OpWarn, "warn msg")
+		})
+		if !strings.Contains(output, "warn msg") {
+			t.Error("Expected warn message to be logged")
+		}
+	})
+
+	t.Run("Error", func(t *testing.T) {
+		output := captureOutput(func() {
+			l.error(OpError, "error msg")
+		})
+		if !strings.Contains(output, "error msg") {
+			t.Error("Expected error message to be logged")
 		}
 	})
 }
 
-func TestLogLevelString(t *testing.T) {
+func TestParseSeverity(t *testing.T) {
 	testCases := []struct {
-		name     string
-		level    string
-		expected fswatcher.LogSeverity
+		input    string
+		expected Severity
 	}{
-		{"Debug", "debug", fswatcher.SeverityError},
-		{"Info", "info", fswatcher.SeverityInfo},
-		{"Error", "error", fswatcher.SeverityError},
-		{"Warn", "warn", fswatcher.SeverityWarn},
-		{"DefaultToWarn", "invalid", fswatcher.SeverityWarn},
-		{"CaseInsensitive", "DEBUG", fswatcher.SeverityError},
+		{"debug", SeverityDebug},
+		{"DEBUG", SeverityDebug},
+		{"info", SeverityInfo},
+		{"warn", SeverityWarn},
+		{"warning", SeverityWarn},
+		{"error", SeverityError},
+		{"invalid", SeverityWarn},
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result := logLevelString(tc.level)
-			if result != tc.expected {
-				t.Errorf("Expected logLevelString('%s') to be %v, but got %v", tc.level, tc.expected, result)
-			}
-		})
+		got := ParseSeverity(tc.input)
+		if got != tc.expected {
+			t.Errorf("ParseSeverity(%q) = %v, want %v", tc.input, got, tc.expected)
+		}
 	}
 }

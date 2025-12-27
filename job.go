@@ -17,7 +17,7 @@ type Job struct {
 	Before   []Job             `yaml:"before,omitempty"`
 	After    []Job             `yaml:"after,omitempty"`
 	Env      map[string]string `yaml:"env,omitempty"`
-	Trigger  *Trigger          `yaml:"trigger,omitempty"`
+	Trigger  *Trigger          `yaml:"on,omitempty"`
 }
 
 // Trigger defines file paths and regex patterns to watch on
@@ -27,7 +27,7 @@ type Trigger struct {
 }
 
 // FromFile loads a Workflow from a YAML configuration file
-func FromFile(filePath string, path string, pathIsSet bool) (*Vai, error) {
+func FromFile(filePath string, path string) (*Vai, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
@@ -40,8 +40,7 @@ func FromFile(filePath string, path string, pathIsSet bool) (*Vai, error) {
 		job.Name = name
 		vai.Jobs[name] = job
 	}
-	// Override the config file's path if the --path flag was explicitly provided
-	if pathIsSet {
+	if path != "" {
 		vai.Config.Path = path
 	}
 	return &vai, nil
@@ -112,7 +111,8 @@ func (a *Job) UnmarshalYAML(node *yaml.Node) error {
 		Before   []Job             `yaml:"before,omitempty"`
 		After    []Job             `yaml:"after,omitempty"`
 		Env      map[string]string `yaml:"env,omitempty"`
-		Trigger  *Trigger          `yaml:"trigger,omitempty"`
+		Trigger  *Trigger          `yaml:"trigger,omitempty"` // Deprecated: use On instead
+		On       *Trigger          `yaml:"on,omitempty"`
 	}
 
 	if err := node.Decode(&raw); err != nil {
@@ -143,7 +143,11 @@ func (a *Job) UnmarshalYAML(node *yaml.Node) error {
 	a.Before = raw.Before
 	a.After = raw.After
 	a.Env = raw.Env
-	a.Trigger = raw.Trigger
+	if raw.On != nil {
+		a.Trigger = raw.On
+	} else if raw.Trigger != nil {
+		a.Trigger = raw.Trigger
+	}
 
 	return nil
 }

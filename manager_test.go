@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+func init() {
+	logger = New(SeverityError)
+}
+
 func TestNewJobManager(t *testing.T) {
 	jm := NewJobManager()
 	if jm == nil {
@@ -20,7 +24,7 @@ func TestJobManager_Register(t *testing.T) {
 		jm := NewJobManager()
 		jobName := "test-job"
 
-		ctx, deregister := jm.Register(jobName, false)
+		ctx, deregister := jm.Register(jobName)
 		if ctx == nil {
 			t.Fatal("Register returned a nil context")
 		}
@@ -39,7 +43,7 @@ func TestJobManager_Register(t *testing.T) {
 		jm := NewJobManager()
 		jobName := "test-job"
 
-		_, deregister := jm.Register(jobName, false)
+		_, deregister := jm.Register(jobName)
 		deregister()
 
 		jm.mu.Lock()
@@ -53,10 +57,10 @@ func TestJobManager_Register(t *testing.T) {
 		jm := NewJobManager()
 		jobName := "test-job"
 
-		ctx1, deregister1 := jm.Register(jobName, false)
+		ctx1, deregister1 := jm.Register(jobName)
 		defer deregister1()
 
-		ctx2, deregister2 := jm.Register(jobName, false)
+		ctx2, deregister2 := jm.Register(jobName)
 		defer deregister2()
 
 		select {
@@ -73,9 +77,9 @@ func TestJobManager_Register(t *testing.T) {
 		jm := NewJobManager()
 		jobName := "test-job"
 
-		_, deregister1 := jm.Register(jobName, false)
+		_, deregister1 := jm.Register(jobName)
 
-		_, deregister2 := jm.Register(jobName, false)
+		_, deregister2 := jm.Register(jobName)
 		defer deregister2()
 
 		deregister1()
@@ -95,7 +99,7 @@ func TestJobManager_Concurrency(t *testing.T) {
 	for range 100 {
 		t.Run("parallel", func(t *testing.T) {
 			t.Parallel()
-			_, deregister := jm.Register(jobName, false)
+			_, deregister := jm.Register(jobName)
 			time.Sleep(time.Millisecond)
 			deregister()
 		})

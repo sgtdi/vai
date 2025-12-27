@@ -30,7 +30,7 @@ Stop the tedious **cycle of manually stopping, rebuilding, and restarting** your
 - ⚡  Zero configuration: Works out-of-the-box for Go projects, no setup required
 - 🎯 Zero external deps: Self contained executable using [fswatcher](https://github.com/sgtdi/fswatcher) for high-performance file monitoring
 - 🔧 Flexible workflows: Simple CLI mode for quick tasks, YAML configuration for complex multi-step workflows
-- 🚀 Production ready: Built for Go 1.21+, optimized for Go web frameworks and advanced pipelines
+- 🚀 Production ready: Built for Go 1.25+, optimized for Go web frameworks and advanced pipelines
 - 📝 Smart file watching: Regex pattern matching, exclusion rules, and directory-specific monitoring
 - ⚙️ Environment vars: Easy injection of environment variables for different development scenarios
 - 🔄 Sequential & Parallel Execution: Run multiple commands in series or parallel for comprehensive workflows
@@ -44,7 +44,7 @@ Stop the tedious **cycle of manually stopping, rebuilding, and restarting** your
 
 ## Installation
 
-Ensure you have Go installed (version 1.24 or higher is recommended).
+Ensure you have Go installed (version 1.25 or higher is recommended).
 
 ```sh
 go install github.com/sgtdi/vai
@@ -65,14 +65,13 @@ The tool can be configured in two ways:
 
 | Flag &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Short | Description                                                               | Default                                                 |
 |:-------------------------------------------------------------|:------|:--------------------------------------------------------------------------|:--------------------------------------------------------|
-| `--cmd`                                                      | `-c`  | Command to run. Can be specified multiple times for sequential execution. | (none)                                                  |
-| `--path`                                                     | `-p`  | Path to vai for changes.                                                | `.`                                                     |
-| `--regex`                                                    | `-r`  | Comma-separated list of regex patterns for files to vai.                | `".*\\.go$", "^go\\.mod$", "^go\\.sum$"`                  |
-| `--env`                                                      | `-e`  | Comma-separated list of `KEY=VALUE` pairs to set as environment variables.| (none)                                                  |
-| `--save`                                                     | `-s`  | Save the current CLI flags to a new YAML configuration file.              | (none)                                                  |
-| `--debug`                                                    | `-d`  | Enable debug mode to print detailed configuration and event information.  | `false`                                                 |
-| `--quiet`                                                    | `-q`  | Disable all logging output, showing only command results.                 | `false`                                                 |
-| `--help`                                                     | `-h`  | Show the help message and exit.                                           | `false`                                                 |
+| `--cmd`                                                      | `-c`  | Command to run. Can be specified multiple times for sequential execution | (none)                                                  |
+| `--path`                                                     | `-p`  | Path to vai for changes                                                | `.`                                                     |
+| `--regex`                                                    | `-r`  | Comma-separated list of regex patterns for files to vai                | `".*\\.go$", "^go\\.mod$", "^go\\.sum$"`                  |
+| `--env`                                                      | `-e`  | Comma-separated list of `KEY=VALUE` pairs to set as environment variables| (none)                                                  |
+| `--save`                                                     | `-s`  | Save the current CLI flags to a new YAML configuration file              | (none)                                                  |
+| `--debug`                                                    | `-d`  | Enable debug mode to print detailed configuration and event information  | `false`                                                 |
+| `--help`                                                     | `-h`  | Show the help message and exit                                           | `false`                                                 |
 
 ### CLI use cases
 
@@ -131,8 +130,8 @@ For more complex workflows, you can create a `vai.yml` file to define multiple j
 config:
   path: .
   cooldown: 100ms
-  logLevel: info
-  clearConsole: true
+  severity: info
+  clearCli: true
 
 jobs:
   # This job runs the main application on changes to Go files
@@ -159,6 +158,19 @@ jobs:
 When you run `vai` in a directory with this `vai.yml`, it will:
 - Run `go fmt` and then `go run .` sequentially when a `.go` file (that isn't a test file) changes
 - Run `go test`, `go vet`, and `golangci-lint` all at the same time when a `_test.go` file changes
+
+#### Configuration Options
+
+The `config` section supports the following options:
+
+| Option | Type | Description | Default |
+|:---|:---|:---|:---|
+| `path` | `string` | The directory path to watch for changes. | `.` |
+| `severity` | `string` | Logging verbosity level. Values: `debug`, `info`, `warn`, `error`. | `warn` |
+| `clearCli` | `bool` | Clear the console screen before running jobs. | `false` |
+| `cooldown` | `duration` | Time to wait after a file change before triggering. Prevents duplicate runs. | `100ms` |
+| `batchingDuration`| `duration` | Window to group multiple file events into a single trigger. | `0s` |
+| `bufferSize` | `int` | Size of the event channel buffer. | `4096` |
 
 ## Examples
 

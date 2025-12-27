@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+func init() {
+	logger = New(SeverityError)
+}
+
 func TestExecute(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Skipping executor tests on Windows due to shell command differences")
@@ -17,7 +21,7 @@ func TestExecute(t *testing.T) {
 	t.Run("executes a simple command", func(t *testing.T) {
 		job := Job{Cmd: "echo", Params: []string{"hello world"}}
 		output := captureOutput(func() {
-			Execute(context.Background(), job, false)
+			Execute(context.Background(), job)
 		})
 
 		if !strings.Contains(output, "hello world") {
@@ -33,7 +37,7 @@ func TestExecute(t *testing.T) {
 			},
 		}
 		output := captureOutput(func() {
-			Execute(context.Background(), job, false)
+			Execute(context.Background(), job)
 		})
 		firstIndex := strings.Index(output, "first")
 		secondIndex := strings.Index(output, "second")
@@ -52,7 +56,7 @@ func TestExecute(t *testing.T) {
 		}
 
 		startTime := time.Now()
-		Execute(context.Background(), job, false)
+		Execute(context.Background(), job)
 		duration := time.Since(startTime)
 
 		if duration > 250*time.Millisecond {
@@ -68,7 +72,7 @@ func TestExecute(t *testing.T) {
 			After:  []Job{{Cmd: "echo", Params: []string{"after"}}},
 		}
 		output := captureOutput(func() {
-			Execute(context.Background(), job, false)
+			Execute(context.Background(), job)
 		})
 
 		beforeIndex := strings.Index(output, "before")
@@ -87,7 +91,7 @@ func TestExecute(t *testing.T) {
 
 		var wg sync.WaitGroup
 		wg.Go(func() {
-			Execute(ctx, job, false)
+			Execute(ctx, job)
 		})
 
 		wg.Wait()
@@ -104,7 +108,7 @@ func TestExecute(t *testing.T) {
 			Env:    map[string]string{"TEST_VAR": "hello from env"},
 		}
 		output := captureOutput(func() {
-			runCommand(context.Background(), job, false)
+			runCommand(context.Background(), job)
 		})
 
 		if !strings.Contains(output, "hello from env") {
@@ -117,12 +121,12 @@ func TestExecute(t *testing.T) {
 
 		var wg sync.WaitGroup
 		wg.Go(func() {
-			Execute(context.Background(), job, false)
+			Execute(context.Background(), job)
 		})
 
 		time.Sleep(100 * time.Millisecond)
 
-		stopCommand(job.Name, false)
+		<-stopCommand(job.Name)
 
 		wg.Wait()
 

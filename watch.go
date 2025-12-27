@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -12,15 +14,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Vai contains vai fields
-type Vai struct {
-	Config     Config            `yaml:"config"`
-	Jobs       map[string]Job    `yaml:"jobs"`
-	jobManager *JobManager       `yaml:"-"`
-	fswatcher  fswatcher.Watcher `yaml:"-"`
-}
-
-// Save writes to a YAML file
+// Save writes the Vai configuration to a YAML file
 func (w *Vai) Save(filePath string) error {
 	var b bytes.Buffer
 	encoder := yaml.NewEncoder(&b)
@@ -32,29 +26,29 @@ func (w *Vai) Save(filePath string) error {
 	return os.WriteFile(filePath, b.Bytes(), 0644)
 }
 
-// SetDefaults applies default values
-func (w *Vai) SetDefaults() {
-	if w.Config.Path == "" {
-		w.Config.Path = "."
+// SetDefaults applies default values to the Vai configuration
+func (v *Vai) SetDefaults() {
+	if v.Config.Path == "" {
+		v.Config.Path = "."
 	}
-	for i, job := range w.Jobs {
+	for i, job := range v.Jobs {
 		if job.Trigger != nil && len(job.Trigger.Paths) == 0 {
-			job.Trigger.Paths = []string{w.Config.Path}
-			w.Jobs[i] = job
+			logger.log(SeverityDebug, OpInfo, "Defaulting paths for job %s to %s", job.Name, v.Config.Path)
+			job.Trigger.Paths = []string{v.Config.Path}
+			v.Jobs[i] = job
 		}
 	}
-	if w.Config.BufferSize == 0 {
-		w.Config.BufferSize = 4096
+	if v.Config.BufferSize == 0 {
+		logger.log(SeverityDebug, OpInfo, "Setting default buffer size to %d", 4096)
+		v.Config.BufferSize = 4096
 	}
-	if w.Config.LogLevel == "" {
-		w.Config.LogLevel = "warn"
+	if v.Config.Severity == "" {
+		logger.log(SeverityDebug, OpInfo, "Setting default severity to %s", SeverityWarn.String())
+		v.Config.Severity = SeverityWarn.String()
 	}
-	if w.Config.Cooldown == 0 {
-		w.Config.Cooldown = 100 * time.Millisecond
-	}
-	if w.Config.ClearConsole == nil {
-		clearDefault := true
-		w.Config.ClearConsole = &clearDefault
+	if v.Config.Cooldown == 0 {
+		logger.log(SeverityDebug, OpInfo, "Setting default cooldown to %s", (100 * time.Millisecond).String())
+		v.Config.Cooldown = 100 * time.Millisecond
 	}
 }
 
@@ -96,25 +90,21 @@ func startWatch(ctx context.Context, w *Vai) {
 		jobNames = append(jobNames, jobName)
 	}
 
-	if w.Config.Debug {
-		Logf(SeveritySuccess, "Jobs successfully imported: %s%s%s", ColorGreen, strings.Join(jobNames, ", "), ColorReset)
-	}
+	logger.log(SeverityInfo, OpSuccess, "Jobs successfully imported: %s%s%s", ColorGreen, strings.Join(jobNames, ", "), ColorReset)
 	// Run jobs on startup
-	Log(SeverityInfo, "Running jobs...")
+	logger.log(SeverityInfo, OpWarn, "Running jobs...")
 	for jobName, job := range w.Jobs {
-		if w.Config.Debug {
-			Logf(SeveritySuccess, "Triggering job: %s%s%s", ColorGreen, jobName, ColorReset)
-		}
-		jobCtx, deregister := w.jobManager.Register(jobName, w.Config.Debug)
+		logger.log(SeverityInfo, OpWarn, "Triggering job: %s%s%s", ColorGreen, jobName, ColorReset)
+		jobCtx, deregister := w.jobManager.Register(jobName)
 		job.Name = jobName
 		go func(j Job) {
 			defer deregister()
-			Execute(jobCtx, j, w.Config.Debug)
+			Execute(jobCtx, j)
 		}(job)
 	}
 
 	if w.Config.Path == "" {
-		Log(SeverityWarn, "No path defined, nothing to vai.")
+		logger.log(SeverityError, OpError, "No path defined, nothing to vai")
 		return
 	}
 
@@ -125,7 +115,6 @@ func startWatch(ctx context.Context, w *Vai) {
 	opts := []fswatcher.WatcherOpt{
 		fswatcher.WithCooldown(w.Config.Cooldown),
 		fswatcher.WithBufferSize(w.Config.BufferSize),
-		fswatcher.WithLogSeverity(logLevelString(w.Config.LogLevel)),
 	}
 	if w.Config.BatchingDuration > 0 {
 		opts = append(opts, fswatcher.WithEventBatching(w.Config.BatchingDuration))
@@ -136,21 +125,21 @@ func startWatch(ctx context.Context, w *Vai) {
 	if len(excRegex) > 0 {
 		opts = append(opts, fswatcher.WithExcRegex(excRegex...))
 	}
-	if w.Config.Debug {
-		opts = append(opts, fswatcher.WithLogSeverity(fswatcher.SeverityError))
+	if w.Config.Severity == SeverityDebug.String() {
+		opts = append(opts, fswatcher.WithSeverity(fswatcher.SeverityDebug))
 		opts = append(opts, fswatcher.WithLogFile("debug.log"))
 	}
 
 	w.fswatcher, err = fswatcher.New(opts...)
 	if err != nil {
-		Logf(SeverityError, "Failed to create watcher: %v", err)
+		logger.log(SeverityError, OpError, "Failed to create watcher: %v", err)
 		return
 	}
 
 	// Get the current working directory to display relative paths
 	cwd, err := os.Getwd()
 	if err != nil {
-		Logf(SeverityWarn, "Could not get current working directory: %v", err)
+		logger.log(SeverityError, OpError, "Could not get current working directory: %v", err)
 		cwd = "" // Ensure cwd is empty on error
 	}
 
@@ -164,7 +153,8 @@ func startWatch(ctx context.Context, w *Vai) {
 				if !ok {
 					return
 				}
-				if *w.Config.ClearConsole {
+				if w.Config.ClearCli {
+					// Clear the console before displaying the change
 					ClearConsole()
 				}
 
@@ -176,77 +166,122 @@ func startWatch(ctx context.Context, w *Vai) {
 					}
 				}
 
-				Logf(SeverityChange, "Change detected: %s", displayPath)
+				logger.log(SeverityWarn, OpTrigger, "%s", purple(fmt.Sprintf("Change detected: %s", displayPath)))
 				// Dispatch the event
 				dispatch(event.Path, w)
 			case err, ok := <-w.fswatcher.Dropped():
 				if !ok {
 					return
 				}
-				Logf(SeverityError, "Watch error: %v", err)
+				logger.log(SeverityError, OpError, "Watch error: %v", err)
 			}
 		}
 	}()
 
 	// Start watching
 	if err := w.fswatcher.Watch(ctx); err != nil {
-		Logf(SeverityError, "Failed to start vai: %v", err)
+		logger.log(SeverityError, OpError, "Failed to start vai: %v", err)
 	}
 
 	// Add the global path
 	if err := w.fswatcher.AddPath(w.Config.Path); err != nil {
 		if ctx.Err() == nil {
-			Logf(SeverityError, "Failed to vai path %s: %v", w.Config.Path, err)
+			logger.log(SeverityError, OpError, "Failed to vai path %s: %v", w.Config.Path, err)
 		}
 	}
+}
+
+// matchRegex checks if the file matches the regex patterns
+func matchRegex(path string, regex []string) bool {
+	if len(regex) == 0 {
+		return true
+	}
+
+	included := false
+	hasInclusion := false
+
+	for _, rx := range regex {
+		// Check for exclusion
+		if strings.HasPrefix(rx, "!") {
+			pattern := strings.TrimPrefix(rx, "!")
+			matched, err := regexp.MatchString(pattern, path)
+			if err == nil && matched {
+				return false
+			}
+			continue
+		}
+
+		// Check for inclusion
+		hasInclusion = true
+		matched, err := regexp.MatchString(rx, path)
+		if err == nil && matched {
+			included = true
+		}
+	}
+
+	// If no inclusion patterns are defined, we default to including (unless excluded above)
+	if !hasInclusion {
+		return true
+	}
+
+	return included
 }
 
 // dispatch checks an event and triggers the ones that match
 func dispatch(eventPath string, w *Vai) {
 	if len(w.Jobs) == 0 {
-		if w.Config.Debug {
-			Logf(SeverityWarn, "No jobs to dispatch event to")
-		}
+		logger.log(SeverityError, OpError, "No jobs to dispatch event to")
 		return
 	}
 
 	for jobName, job := range w.Jobs {
 		if job.Trigger == nil || len(job.Trigger.Paths) == 0 {
-			if w.Config.Debug {
-				Logf(SeverityWarn, "Skipping job '%s': no paths defined", jobName)
-			}
+			logger.log(SeverityWarn, OpError, "Skipping job '%s': no paths defined", jobName)
 			continue
 		}
 
 		// Check if the event path is in job's vai paths
 		pathMatch := false
-		for _, watchPath := range w.fswatcher.Paths() {
-			if strings.HasPrefix(eventPath, watchPath) {
+		absEventPath, _ := filepath.Abs(eventPath)
+		canonicalEventPath, _ := filepath.EvalSymlinks(absEventPath)
+		if canonicalEventPath == "" {
+			canonicalEventPath = absEventPath
+		}
+
+		for _, watchPath := range job.Trigger.Paths {
+			absWatchPath, _ := filepath.Abs(watchPath)
+			canonicalWatchPath, _ := filepath.EvalSymlinks(absWatchPath)
+			if canonicalWatchPath == "" {
+				canonicalWatchPath = absWatchPath
+			}
+
+			if strings.HasPrefix(canonicalEventPath, canonicalWatchPath) {
 				pathMatch = true
 				break
 			}
 		}
 
 		if !pathMatch {
-			if w.Config.Debug {
-				Logf(SeverityWarn, "Skipping job '%s': event path '%s' is not in vai paths %v", jobName, eventPath, w.fswatcher.Paths())
-			}
+			logger.log(SeverityDebug, OpWarn, "Skipping job '%s': event path '%s' is not in watched paths", jobName, eventPath)
+			continue
+		}
+
+		// Check regex
+		if !matchRegex(eventPath, job.Trigger.Regex) {
+			logger.log(SeverityDebug, OpWarn, "Skipping job '%s': event path '%s' does not match regex", jobName, eventPath)
 			continue
 		}
 
 		// Job is a match
-		if w.Config.Debug {
-			Logf(SeveritySuccess, "Triggering job: %s%s%s", ColorGreen, jobName, ColorReset)
-		}
+		logger.log(SeverityDebug, OpSuccess, "Triggering job: %s", green("[", jobName, "]"))
 
-		// Register the job
-		ctx, deregister := w.jobManager.Register(jobName, w.Config.Debug)
-		job.Name = jobName
+		go func(name string, j Job) {
+			// Register the job
+			ctx, deregister := w.jobManager.Register(name)
+			j.Name = name
 
-		// Run the job
-		go func(j Job) {
 			defer deregister() // Deregister on complete
-			Execute(ctx, j, w.Config.Debug)
-		}(job)
+			Execute(ctx, j)
+		}(jobName, job)
 	}
 }

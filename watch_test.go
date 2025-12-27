@@ -19,8 +19,8 @@ func TestWatch_SetDefaults(t *testing.T) {
 		if w.Config.BufferSize != 4096 {
 			t.Errorf("Expected BufferSize to be 4096, got %d", w.Config.BufferSize)
 		}
-		if w.Config.LogLevel != "warn" {
-			t.Errorf("Expected LogLevel to be 'warn', got '%s'", w.Config.LogLevel)
+		if w.Config.Severity != SeverityWarn.String() {
+			t.Errorf("Expected Severity to be 'warn', got '%s'", w.Config.Severity)
 		}
 		if w.Config.Cooldown != 100*time.Millisecond {
 			t.Errorf("Expected Cooldown to be 100ms, got %v", w.Config.Cooldown)
@@ -31,7 +31,7 @@ func TestWatch_SetDefaults(t *testing.T) {
 		w := &Vai{
 			Config: Config{
 				BufferSize: 512,
-				LogLevel:   "debug",
+				Severity:   "debug",
 				Cooldown:   50 * time.Millisecond,
 			},
 		}
@@ -40,8 +40,8 @@ func TestWatch_SetDefaults(t *testing.T) {
 		if w.Config.BufferSize != 512 {
 			t.Errorf("Expected BufferSize to remain 512, got %d", w.Config.BufferSize)
 		}
-		if w.Config.LogLevel != "debug" {
-			t.Errorf("Expected LogLevel to remain 'debug', got '%s'", w.Config.LogLevel)
+		if w.Config.Severity != "debug" {
+			t.Errorf("Expected Severity to remain 'debug', got '%s'", w.Config.Severity)
 		}
 		if w.Config.Cooldown != 50*time.Millisecond {
 			t.Errorf("Expected Cooldown to remain 50ms, got %v", w.Config.Cooldown)
@@ -51,7 +51,7 @@ func TestWatch_SetDefaults(t *testing.T) {
 
 func TestWatch_Save(t *testing.T) {
 	w := &Vai{
-		Config: Config{Path: "/tmp", LogLevel: "info"},
+		Config: Config{Path: "/tmp", Severity: "info"},
 		Jobs: map[string]Job{
 			"test-job": {Cmd: "go", Params: []string{"test"}},
 		},

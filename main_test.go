@@ -8,6 +8,10 @@ import (
 	"testing"
 )
 
+func init() {
+	logger = New(SeverityError)
+}
+
 func captureOutput(f func()) string {
 	old := os.Stdout
 	r, w, _ := os.Pipe()
@@ -27,10 +31,11 @@ func captureOutput(f func()) string {
 	return <-outC
 }
 
-func TestHandleConfig(t *testing.T) {
+func TestNewVai(t *testing.T) {
 	t.Run("CLI arguments take precedence", func(t *testing.T) {
 		cmdFlags := []string{"go run ."}
-		vai := handleConfig(cmdFlags, nil, "./app", true, "", "", "vai.yml", false, false, false)
+		// NewVai(cmdFlags, positionalArgs, path, regex, env, configFile, help, severity)
+		vai := NewVai(cmdFlags, nil, "./app", "", "", "vai.yml", false, SeverityWarn)
 
 		if vai.Config.Path != "./app" {
 			t.Errorf("Expected path to be './app', got '%s'", vai.Config.Path)
@@ -56,7 +61,7 @@ jobs:
 		tmpfile.Write([]byte(content))
 		tmpfile.Close()
 
-		vai := handleConfig(nil, nil, "", false, "", "", tmpfile.Name(), false, false, false)
+		vai := NewVai(nil, nil, "", "", "", tmpfile.Name(), false, SeverityWarn)
 
 		if vai.Config.Path != "/file" {
 			t.Errorf("Expected path to be '/file', got '%s'", vai.Config.Path)
@@ -66,25 +71,27 @@ jobs:
 		}
 	})
 
-	t.Run("Debug flag is set correctly", func(t *testing.T) {
+	t.Run("Debug severity is set correctly", func(t *testing.T) {
 		tmpfile, err := os.CreateTemp("", "vai.*.yaml")
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer os.Remove(tmpfile.Name())
 
-		vai := handleConfig(nil, nil, "", false, "", "", tmpfile.Name(), false, true, false)
-		if !vai.Config.Debug {
-			t.Error("Expected Debug to be true, but it was false")
+		vai := NewVai(nil, nil, "", "", "", tmpfile.Name(), false, SeverityDebug)
+		if vai.Config.Severity != SeverityDebug.String() {
+			t.Errorf("Expected Severity to be 'debug', got '%s'", vai.Config.Severity)
 		}
 	})
 }
 
-func TestHandleCommands(t *testing.T) {
+func TestHandleCmds(t *testing.T) {
+	v := &Vai{}
+
 	t.Run("cmd flags take precedence", func(t *testing.T) {
 		cmdFlags := []string{"cmd1", "cmd2"}
 		positional := []string{"pos1", "pos2"}
-		series, single := handleCommands(cmdFlags, positional)
+		series, single := v.handleCmds(cmdFlags, positional)
 
 		if !reflect.DeepEqual(series, cmdFlags) {
 			t.Errorf("Expected series to be %v, got %v", cmdFlags, series)
@@ -96,19 +103,7 @@ func TestHandleCommands(t *testing.T) {
 
 	t.Run("positional args are used as fallback", func(t *testing.T) {
 		positional := []string{"pos1", "pos2"}
-		series, single := handleCommands(nil, positional)
-
-		if series != nil {
-			t.Errorf("Expected series to be nil, got %v", series)
-		}
-		if !reflect.DeepEqual(single, positional) {
-			t.Errorf("Expected single to be %v, got %v", positional, single)
-		}
-	})
-
-	t.Run("positional args with flags are parsed correctly", func(t *testing.T) {
-		positional := []string{"some-command", "--flag", "value"}
-		series, single := handleCommands(nil, positional)
+		series, single := v.handleCmds(nil, positional)
 
 		if series != nil {
 			t.Errorf("Expected series to be nil, got %v", series)
@@ -119,9 +114,9 @@ func TestHandleCommands(t *testing.T) {
 	})
 }
 
-func TestHandleRegex(t *testing.T) {
+func TestParseRegex(t *testing.T) {
 	t.Run("parses comma-separated patterns", func(t *testing.T) {
-		patterns := handleRegex("p1, p2 ,p3")
+		patterns := parseRegex("p1, p2 ,p3")
 		expected := []string{"p1", "p2", "p3"}
 		if !reflect.DeepEqual(patterns, expected) {
 			t.Errorf("Expected %v, got %v", expected, patterns)
@@ -129,7 +124,7 @@ func TestHandleRegex(t *testing.T) {
 	})
 
 	t.Run("returns default patterns when empty", func(t *testing.T) {
-		patterns := handleRegex("")
+		patterns := parseRegex("")
 		expected := []string{".*\\.go$", "^go\\.mod$", "^go\\.sum$"}
 		if !reflect.DeepEqual(patterns, expected) {
 			t.Errorf("Expected default patterns, got %v", patterns)
@@ -137,9 +132,9 @@ func TestHandleRegex(t *testing.T) {
 	})
 }
 
-func TestHandleEnv(t *testing.T) {
+func TestParseEnv(t *testing.T) {
 	t.Run("parses comma-separated env vars", func(t *testing.T) {
-		envMap := handleEnv("K1=V1, K2=V2 , K3=V3")
+		envMap := parseEnv("K1=V1, K2=V2 , K3=V3")
 		expected := map[string]string{"K1": "V1", "K2": "V2", "K3": "V3"}
 		if !reflect.DeepEqual(envMap, expected) {
 			t.Errorf("Expected %v, got %v", expected, envMap)
@@ -147,7 +142,7 @@ func TestHandleEnv(t *testing.T) {
 	})
 
 	t.Run("handles invalid pairs gracefully", func(t *testing.T) {
-		envMap := handleEnv("K1=V1,invalid,K3=V3")
+		envMap := parseEnv("K1=V1,invalid,K3=V3")
 		expected := map[string]string{"K1": "V1", "K3": "V3"}
 		if !reflect.DeepEqual(envMap, expected) {
 			t.Errorf("Expected %v, got %v", expected, envMap)
