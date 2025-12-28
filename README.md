@@ -131,14 +131,16 @@ For more complex workflows, you can create a `vai.yml` file to define multiple j
 ```yaml
 config:
   path: .
+  severity: warn
   cooldown: 100ms
-  severity: info
-  clearCli: true
+  clearCli: false
+  bufferSize: 4096
+  batchingDuration: 0s
 
 jobs:
   # This job runs the main application on changes to Go files
   run-app:
-    on:
+    trigger:
       regex:
         - ".*\\.go$"
         - "!.*_test.go$" # Exclude test files
@@ -148,7 +150,7 @@ jobs:
 
   # This job runs tests and linters in parallel on changes to test files
   run-quality-checks:
-    on:
+    trigger:
       regex:
         - ".*_test\\.go$"
     parallel:
