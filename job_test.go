@@ -31,7 +31,7 @@ series:
   - cmd: "./app"
 env:
   APP_ENV: "development"
-on:
+trigger:
   regex:
     - '\.go$'
 `
@@ -49,9 +49,9 @@ on:
 		if job.Env["APP_ENV"] != "development" {
 			t.Errorf("Expected APP_ENV to be 'development', got '%s'", job.Env["APP_ENV"])
 		}
-		// The expected value in Go is an unescaped string.
-		if len(job.On.Regex) != 1 || job.On.Regex[0] != `\.go$` {
-			t.Errorf("Expected regex '\\.go$', got '%v'", job.On.Regex)
+		// The expected value in Go is an unescaped string
+		if len(job.Trigger.Regex) != 1 || job.Trigger.Regex[0] != `\.go$` {
+			t.Errorf("Expected regex '\\.go$', got '%v'", job.Trigger.Regex)
 		}
 	})
 
@@ -76,13 +76,13 @@ func TestFromCLI(t *testing.T) {
 		patterns := []string{`\.go$`}
 		env := map[string]string{"PORT": "8080"}
 
-		watch := FromCLI(nil, singleCmd, path, patterns, env)
+		vai := FromCLI(nil, singleCmd, path, patterns, env)
 
-		if watch.Config.Path != path {
-			t.Errorf("Expected path '%s', got '%s'", path, watch.Config.Path)
+		if vai.Config.Path != path {
+			t.Errorf("Expected path '%s', got '%s'", path, vai.Config.Path)
 		}
 
-		job := watch.Jobs["default"]
+		job := vai.Jobs["default"]
 		if len(job.Series) != 1 {
 			t.Fatalf("Expected 1 series job, got %d", len(job.Series))
 		}
@@ -92,16 +92,16 @@ func TestFromCLI(t *testing.T) {
 		if job.Env["PORT"] != "8080" {
 			t.Errorf("Expected env PORT=8080, got '%s'", job.Env["PORT"])
 		}
-		if !reflect.DeepEqual(job.On.Regex, patterns) {
-			t.Errorf("Expected regex patterns '%v', got '%v'", patterns, job.On.Regex)
+		if !reflect.DeepEqual(job.Trigger.Regex, patterns) {
+			t.Errorf("Expected regex patterns '%v', got '%v'", patterns, job.Trigger.Regex)
 		}
 	})
 
 	t.Run("From multiple cmd flags", func(t *testing.T) {
 		seriesCmds := []string{"go fmt ./...", "go run ."}
-		watch := FromCLI(seriesCmds, nil, ".", nil, nil)
+		vai := FromCLI(seriesCmds, nil, ".", nil, nil)
 
-		job := watch.Jobs["default"]
+		job := vai.Jobs["default"]
 		if len(job.Series) != 2 {
 			t.Fatalf("Expected 2 series jobs, got %d", len(job.Series))
 		}
@@ -125,18 +125,18 @@ jobs:
       - "go run ."
 `
 		tempDir := t.TempDir()
-		filePath := filepath.Join(tempDir, "watch.yml")
+		filePath := filepath.Join(tempDir, "vai.yml")
 		os.WriteFile(filePath, []byte(yamlContent), 0644)
 
-		watch, err := FromFile(filePath, "", false)
+		vai, err := FromFile(filePath, "")
 		if err != nil {
 			t.Fatalf("FromFile failed: %v", err)
 		}
 
-		if watch.Config.Path != "/app" {
-			t.Errorf("Expected path '/app', got '%s'", watch.Config.Path)
+		if vai.Config.Path != "/app" {
+			t.Errorf("Expected path '/app', got '%s'", vai.Config.Path)
 		}
-		if _, ok := watch.Jobs["default"]; !ok {
+		if _, ok := vai.Jobs["default"]; !ok {
 			t.Error("Expected 'default' job to be present")
 		}
 	})
@@ -147,21 +147,21 @@ config:
   path: "/app"
 `
 		tempDir := t.TempDir()
-		filePath := filepath.Join(tempDir, "watch.yml")
+		filePath := filepath.Join(tempDir, "vai.yml")
 		os.WriteFile(filePath, []byte(yamlContent), 0644)
 
-		watch, err := FromFile(filePath, "/override", true)
+		vai, err := FromFile(filePath, "/override")
 		if err != nil {
 			t.Fatalf("FromFile failed: %v", err)
 		}
 
-		if watch.Config.Path != "/override" {
-			t.Errorf("Expected path to be overridden to '/override', but got '%s'", watch.Config.Path)
+		if vai.Config.Path != "/override" {
+			t.Errorf("Expected path to be overridden to '/override', but got '%s'", vai.Config.Path)
 		}
 	})
 
 	t.Run("Return error for non-existent file", func(t *testing.T) {
-		_, err := FromFile("non-existent-file.yml", "", false)
+		_, err := FromFile("non-existent-file.yml", "")
 		if err == nil {
 			t.Fatal("Expected an error for a non-existent file, but got none")
 		}
@@ -170,10 +170,10 @@ config:
 	t.Run("Return error for malformed YAML", func(t *testing.T) {
 		yamlContent := `config: { path: "/app }`
 		tempDir := t.TempDir()
-		filePath := filepath.Join(tempDir, "watch.yml")
+		filePath := filepath.Join(tempDir, "vai.yml")
 		os.WriteFile(filePath, []byte(yamlContent), 0644)
 
-		_, err := FromFile(filePath, "", false)
+		_, err := FromFile(filePath, "")
 		if err == nil {
 			t.Fatal("Expected an error for malformed YAML, but got none")
 		}

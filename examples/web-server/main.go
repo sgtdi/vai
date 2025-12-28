@@ -14,8 +14,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	http.HandleFunc("/", handler)
-	log.Println("Server starting on :8080...")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	log.Println("Server starting on port: 9080...")
+	if err := http.ListenAndServe(":9080", nil); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }

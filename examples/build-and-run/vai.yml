@@ -2,7 +2,7 @@
 
 jobs:
   build-and-run:
-    on:
+    trigger:
       regex:
         - ".*\\.go$"
     series:

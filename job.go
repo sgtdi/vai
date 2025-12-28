@@ -9,7 +9,7 @@ import (
 
 // Job is the unified struct for any unit of work
 type Job struct {
-	Name     string            `yaml:"name,omitempty"`
+	Name     string            `yaml:"-"`
 	Cmd      string            `yaml:"cmd,omitempty"`
 	Params   []string          `yaml:"params,omitempty"`
 	Series   []Job             `yaml:"series,omitempty"`
@@ -17,34 +17,37 @@ type Job struct {
 	Before   []Job             `yaml:"before,omitempty"`
 	After    []Job             `yaml:"after,omitempty"`
 	Env      map[string]string `yaml:"env,omitempty"`
-	On       *On               `yaml:"on,omitempty"`
+	Trigger  *Trigger          `yaml:"on,omitempty"`
 }
 
-// On defines file paths and regex patterns to watch on
-type On struct {
+// Trigger defines file paths and regex patterns to watch on
+type Trigger struct {
 	Paths []string `yaml:"paths,omitempty"`
 	Regex []string `yaml:"regex,omitempty"`
 }
 
 // FromFile loads a Workflow from a YAML configuration file
-func FromFile(filePath string, path string, pathIsSet bool) (*Watch, error) {
+func FromFile(filePath string, path string) (*Vai, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
-	var watch Watch
-	if err := yaml.Unmarshal(data, &watch); err != nil {
+	var vai Vai
+	if err := yaml.Unmarshal(data, &vai); err != nil {
 		return nil, err
 	}
-	// Override the config file's path if the --path flag was explicitly provided
-	if pathIsSet {
-		watch.Config.Path = path
+	for name, job := range vai.Jobs {
+		job.Name = name
+		vai.Jobs[name] = job
 	}
-	return &watch, nil
+	if path != "" {
+		vai.Config.Path = path
+	}
+	return &vai, nil
 }
 
 // FromCLI creates a Workflow object from the parsed command-line flags
-func FromCLI(seriesCmds []string, singleCmd []string, path string, patterns []string, env map[string]string) *Watch {
+func FromCLI(seriesCmds []string, singleCmd []string, path string, patterns []string, env map[string]string) *Vai {
 	var taskActions []Job
 
 	if len(singleCmd) > 0 {
@@ -69,13 +72,13 @@ func FromCLI(seriesCmds []string, singleCmd []string, path string, patterns []st
 	jobAction := Job{
 		Series: taskActions,
 		Env:    env,
-		On: &On{
+		Trigger: &Trigger{
 			Paths: []string{path},
 			Regex: patterns,
 		},
 	}
 
-	return &Watch{
+	return &Vai{
 		Config: Config{
 			Path: path,
 		},
@@ -108,7 +111,8 @@ func (a *Job) UnmarshalYAML(node *yaml.Node) error {
 		Before   []Job             `yaml:"before,omitempty"`
 		After    []Job             `yaml:"after,omitempty"`
 		Env      map[string]string `yaml:"env,omitempty"`
-		On       *On               `yaml:"on,omitempty"`
+		Trigger  *Trigger          `yaml:"trigger,omitempty"` // Deprecated: use On instead
+		On       *Trigger          `yaml:"on,omitempty"`
 	}
 
 	if err := node.Decode(&raw); err != nil {
@@ -139,7 +143,11 @@ func (a *Job) UnmarshalYAML(node *yaml.Node) error {
 	a.Before = raw.Before
 	a.After = raw.After
 	a.Env = raw.Env
-	a.On = raw.On
+	if raw.On != nil {
+		a.Trigger = raw.On
+	} else if raw.Trigger != nil {
+		a.Trigger = raw.Trigger
+	}
 
 	return nil
 }

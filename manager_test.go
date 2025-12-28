@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+func init() {
+	logger = New(SeverityError)
+}
+
 func TestNewJobManager(t *testing.T) {
 	jm := NewJobManager()
 	if jm == nil {

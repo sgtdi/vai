@@ -2,7 +2,7 @@
 
 jobs:
   test-with-env:
-    on:
+    trigger:
       # Watch all Go files, but exclude the main module files
       regex:
         - ".*\\.go$"

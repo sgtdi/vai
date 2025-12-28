@@ -25,20 +25,29 @@ func NewJobManager() *JobManager {
 	}
 }
 
-// Register starts tracking a new job. If a job with the same name is already running, it cancels the previous one
+// Register starts tracking a new job. If a job with the same name is already running, it cancels the previous
 func (jm *JobManager) Register(jobName string) (context.Context, func()) {
+	// Check if a job is already running
+	jm.mu.Lock()
+	existingJob, exists := jm.running[jobName]
+	jm.mu.Unlock()
+
+	// If it exists, stop it OUTSIDE the lock
+	if exists {
+		logger.log(SeverityDebug, OpWarn, "JobManager: Stopping previously running job: %s", jobName)
+		existingJob.cancel()
+		logger.log(SeverityDebug, OpWarn, "JobManager: Calling stopCommand for %s", jobName)
+		<-stopCommand(jobName)
+		logger.log(SeverityDebug, OpSuccess, "JobManager: stopCommand for %s finished", jobName)
+	}
+
+	// Now re-acquire the lock to register the new job
 	jm.mu.Lock()
 	defer jm.mu.Unlock()
 
-	// Stop all previously running jobs
-	for name, job := range jm.running {
-		Logf(SeverityInfo, "Stopping previously running job: %s", name)
-		stopCommand(name)
-		job.cancel()
-	}
-
 	// Create a new job instance
 	ctx, cancel := context.WithCancel(context.Background())
+	logger.log(SeverityDebug, OpWarn, "JobManager: Creating new context for job: %s", jobName)
 
 	// Assign a unique ID
 	jm.nextID++
@@ -57,5 +66,22 @@ func (jm *JobManager) Register(jobName string) (context.Context, func()) {
 		if job, ok := jm.running[jobName]; ok && job.id == jobID {
 			delete(jm.running, jobName)
 		}
+	}
+}
+
+// StopAll stops all running jobs
+func (jm *JobManager) StopAll() {
+	jm.mu.Lock()
+	defer jm.mu.Unlock()
+
+	var stoppedChs []<-chan struct{}
+	for name, job := range jm.running {
+		logger.log(SeverityDebug, OpWarn, "JobManager: Stopping job on exit: %s", name)
+		job.cancel()
+		stoppedChs = append(stoppedChs, stopCommand(name))
+	}
+
+	for _, ch := range stoppedChs {
+		<-ch
 	}
 }

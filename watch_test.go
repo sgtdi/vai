@@ -13,14 +13,14 @@ import (
 
 func TestWatch_SetDefaults(t *testing.T) {
 	t.Run("sets defaults for zero values", func(t *testing.T) {
-		w := &Watch{}
+		w := &Vai{}
 		w.SetDefaults()
 
 		if w.Config.BufferSize != 4096 {
 			t.Errorf("Expected BufferSize to be 4096, got %d", w.Config.BufferSize)
 		}
-		if w.Config.LogLevel != "warn" {
-			t.Errorf("Expected LogLevel to be 'warn', got '%s'", w.Config.LogLevel)
+		if w.Config.Severity != SeverityWarn.String() {
+			t.Errorf("Expected Severity to be 'warn', got '%s'", w.Config.Severity)
 		}
 		if w.Config.Cooldown != 100*time.Millisecond {
 			t.Errorf("Expected Cooldown to be 100ms, got %v", w.Config.Cooldown)
@@ -28,10 +28,10 @@ func TestWatch_SetDefaults(t *testing.T) {
 	})
 
 	t.Run("does not override existing values", func(t *testing.T) {
-		w := &Watch{
+		w := &Vai{
 			Config: Config{
 				BufferSize: 512,
-				LogLevel:   "debug",
+				Severity:   "debug",
 				Cooldown:   50 * time.Millisecond,
 			},
 		}
@@ -40,8 +40,8 @@ func TestWatch_SetDefaults(t *testing.T) {
 		if w.Config.BufferSize != 512 {
 			t.Errorf("Expected BufferSize to remain 512, got %d", w.Config.BufferSize)
 		}
-		if w.Config.LogLevel != "debug" {
-			t.Errorf("Expected LogLevel to remain 'debug', got '%s'", w.Config.LogLevel)
+		if w.Config.Severity != "debug" {
+			t.Errorf("Expected Severity to remain 'debug', got '%s'", w.Config.Severity)
 		}
 		if w.Config.Cooldown != 50*time.Millisecond {
 			t.Errorf("Expected Cooldown to remain 50ms, got %v", w.Config.Cooldown)
@@ -50,15 +50,15 @@ func TestWatch_SetDefaults(t *testing.T) {
 }
 
 func TestWatch_Save(t *testing.T) {
-	w := &Watch{
-		Config: Config{Path: "/tmp", LogLevel: "info"},
+	w := &Vai{
+		Config: Config{Path: "/tmp", Severity: "info"},
 		Jobs: map[string]Job{
 			"test-job": {Cmd: "go", Params: []string{"test"}},
 		},
 	}
 
 	tempDir := t.TempDir()
-	filePath := filepath.Join(tempDir, "watch.yml")
+	filePath := filepath.Join(tempDir, "vai.yml")
 
 	err := w.Save(filePath)
 	if err != nil {
@@ -70,36 +70,36 @@ func TestWatch_Save(t *testing.T) {
 		t.Fatalf("Failed to read saved file: %v", err)
 	}
 
-	var loadedWatch Watch
-	if err := yaml.Unmarshal(data, &loadedWatch); err != nil {
+	var loadedVai Vai
+	if err := yaml.Unmarshal(data, &loadedVai); err != nil {
 		t.Fatalf("Failed to unmarshal saved data: %v", err)
 	}
 
-	if !reflect.DeepEqual(w.Config, loadedWatch.Config) {
-		t.Errorf("Saved config does not match original. Got %+v, want %+v", loadedWatch.Config, w.Config)
+	if !reflect.DeepEqual(w.Config, loadedVai.Config) {
+		t.Errorf("Saved config does not match original. Got %+v, want %+v", loadedVai.Config, w.Config)
 	}
-	if !reflect.DeepEqual(w.Jobs, loadedWatch.Jobs) {
-		t.Errorf("Saved jobs do not match original. Got %+v, want %+v", loadedWatch.Jobs, w.Jobs)
+	if !reflect.DeepEqual(w.Jobs, loadedVai.Jobs) {
+		t.Errorf("Saved jobs do not match original. Got %+v, want %+v", loadedVai.Jobs, w.Jobs)
 	}
 }
 
 func TestAggregateRegex(t *testing.T) {
-	watch := &Watch{
+	vai := &Vai{
 		Jobs: map[string]Job{
 			"job1": {
-				On: &On{Regex: []string{"\\.go$", "!\\.test\\.go$", "\\.mod$"}},
+				Trigger: &Trigger{Regex: []string{"\\.go$", "!\\.test\\.go$", "\\.mod$"}},
 			},
 			"job2": {
-				On: &On{Regex: []string{"\\.html$", "!\\.test\\.go$"}},
+				Trigger: &Trigger{Regex: []string{"\\.html$", "!\\.test\\.go$"}},
 			},
 			"job3": {},
 			"job4": {
-				On: &On{Regex: []string{"\\.go$"}},
+				Trigger: &Trigger{Regex: []string{"\\.go$"}},
 			},
 		},
 	}
 
-	inc, exc := aggregateRegex(watch)
+	inc, exc := aggregateRegex(vai)
 
 	sort.Strings(inc)
 	sort.Strings(exc)

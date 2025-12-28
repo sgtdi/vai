@@ -49,7 +49,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           TAG: ${{ github.ref_name }}
         run: |
-          BINARY_NAME="watch-${TAG}-${GOOS}-${GOARCH}"
+          BINARY_NAME="vai-${TAG}-${GOOS}-${GOARCH}"
           if [ "$GOOS" = "windows" ]; then
             go build -v -o "${BINARY_NAME}.exe" .
           else
@@ -57,10 +57,10 @@ jobs:
           fi
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
-          name: watch-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: watch-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}*
+          name: vai-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: vai-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}*
 
   publish-assets:
     name: Publish assets
@@ -70,7 +70,7 @@ jobs:
       contents: write
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           path: artifacts
 

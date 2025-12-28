@@ -2,7 +2,7 @@
 
 jobs:
   run-web-server:
-    on:
+    trigger:
       regex:
         - ".*\\.go$"
     series:

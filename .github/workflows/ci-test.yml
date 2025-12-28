@@ -56,13 +56,13 @@ jobs:
         shell: bash
         run: |
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            go test -v -coverprofile=coverage.out -count=1 .
+            go test -v -coverprofile=coverage.out -count=1 ./...
           else
-            go test -v -race -coverprofile=coverage.out -count=1 .
+            go test -v -race -coverprofile=coverage.out -count=1 ./...
           fi
 
       - name: "Upload coverage report"
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-report-${{ matrix.os }}
           path: coverage.out

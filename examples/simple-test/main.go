@@ -7,5 +7,5 @@ func Add(a, b int) int {
 }
 
 func main() {
-	fmt.Println("This is the main function. Run 'watch' to execute the tests.")
+	fmt.Println("This is the main function. Run 'vai' to execute the tests.")
 }

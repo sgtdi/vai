@@ -4,90 +4,182 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/sgtdi/fswatcher"
 )
 
-// isQuiet is a global flag to disable all logging
-var isQuiet bool
-
-// Severity levels to control the color of the output
-const (
-	SeverityInfo    = "info"
-	SeveritySuccess = "success"
-	SeverityWarn    = "warn"
-	SeverityError   = "error"
-)
-
-// ANSI Color Codes for terminal output
 const (
 	ColorReset  = "\033[0m"
 	ColorRed    = "\033[31m"
 	ColorGreen  = "\033[32m"
 	ColorYellow = "\033[33m"
+	ColorCyan   = "\033[36m"
+	ColorPurple = "\033[35m"
+	ColorWhite  = "\033[97m"
+	ColorGray   = "\033[90m"
 )
 
-// logImpl handles formatting and printing
-func logImpl(severity, message string) {
-	// Get HH:MM:SS
-	timestamp := time.Now().Format("15:04:05")
-
-	// Determine the color
-	var color string
-	switch severity {
-	case SeveritySuccess:
-		color = ColorGreen
-	case SeverityWarn:
-		color = ColorYellow
-	case SeverityError:
-		color = ColorRed
-		message = fmt.Sprintf("%s%s%s", ColorRed, message, ColorReset)
-	default:
-		color = ""
+// colorize returns a string with the specified color
+func colorize(color string, values ...any) string {
+	if len(values) == 0 {
+		return ""
 	}
 
-	if color != "" {
-		// Print the formatted string: [hh:mm:ss][watch] - Message
-		fmt.Printf("[%s][%s%s%s] - %s\n",
-			timestamp,
-			color,
-			"watch",
-			ColorReset,
-			message,
-		)
-	} else {
-		// Print the formatted string: [hh:mm:ss][watch] - Message
-		fmt.Printf("[%s][watch] - %s\n",
-			timestamp,
-			message,
-		)
+	return fmt.Sprintf(
+		"%s%s%s",
+		color,
+		fmt.Sprint(values...),
+		ColorReset,
+	)
+}
+
+// Red returns a string with red color
+func red(v ...any) string {
+	return colorize(ColorRed, v...)
+}
+
+// Green returns a string with green color
+func green(v ...any) string {
+	return colorize(ColorGreen, v...)
+}
+
+// Yellow returns a string with yellow color
+func yellow(v ...any) string {
+	return colorize(ColorYellow, v...)
+}
+
+// Cyan returns a string with cyan color
+func cyan(v ...any) string {
+	return colorize(ColorCyan, v...)
+}
+
+// Purple returns a string with purple color
+func purple(v ...any) string {
+	return colorize(ColorPurple, v...)
+}
+
+// White returns a string with white color
+func white(v ...any) string {
+	return colorize(ColorWhite, v...)
+}
+
+// Gray returns a string with gray color
+func gray(v ...any) string {
+	return colorize(ColorGray, v...)
+}
+
+// Severity represents the severity level of a log message
+type Severity int
+
+const (
+	SeverityDebug Severity = iota
+	SeverityInfo
+	SeverityWarn
+	SeverityError
+)
+
+// ParseSeverity converts a string to a Severity level
+func ParseSeverity(s string) Severity {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "debug":
+		return SeverityDebug
+	case "info":
+		return SeverityInfo
+	case "warn", "warning":
+		return SeverityWarn
+	case "error":
+		return SeverityError
+	default:
+		return SeverityWarn
 	}
 }
 
-// Log prints a formatted log mesage
-func Log(severity, message string) {
-	if isQuiet {
+// String returns the string representation of the severity level
+func (s Severity) String() string {
+	switch s {
+	case SeverityDebug:
+		return "debug"
+	case SeverityInfo:
+		return "info"
+	case SeverityWarn:
+		return "warn"
+	case SeverityError:
+		return "error"
+	default:
+		return "warn"
+	}
+}
+
+// Operation type
+type Op int
+
+const (
+	OpSuccess Op = iota
+	OpError
+	OpInfo
+	OpWarn
+	OpTrigger
+)
+
+// Association between ops and colors
+var opColor = map[Op]string{
+	OpSuccess: ColorGreen,
+	OpError:   ColorRed,
+	OpInfo:    ColorCyan,
+	OpWarn:    ColorYellow,
+	OpTrigger: ColorPurple,
+}
+
+// Logger represents a logger instance with the specified log level
+type Logger struct {
+	level Severity
+}
+
+// New creates a new logger instance with the specified log level
+func New(level Severity) *Logger {
+	return &Logger{level: level}
+}
+
+// Log logs a message with the specified level, operation, format, and arguments
+func (l *Logger) log(level Severity, op Op, format string, args ...any) {
+	// Severity filter
+	if level < l.level {
 		return
 	}
-	logImpl(severity, message)
+
+	// Timestamp (HH:MM:SS)
+	timestamp := time.Now().Format("15:04:05")
+
+	// Color based on op
+	color := opColor[op]
+
+	// Format message
+	message := fmt.Sprintf(format, args...)
+
+	// Final output
+	fmt.Printf(
+		"%s[%s]%s %s\n",
+		color,
+		timestamp,
+		ColorReset,
+		message,
+	)
 }
 
-// Logf support formatted strings
-func Logf(severity, format string, a ...any) {
-	message := fmt.Sprintf(format, a...)
-	Log(severity, message)
+// Debug logs a debug message with the specified operation, format, and arguments
+func (l *Logger) debug(op Op, format string, args ...any) {
+	l.log(SeverityDebug, op, format, args...)
 }
 
-// logLevelString converts a string to a fswatcher.LogLevel
-func logLevelString(level string) fswatcher.LogSeverity {
-	switch strings.ToLower(level) {
-	case "debug":
-		return fswatcher.SeverityDebug
-	case "info":
-		return fswatcher.SeverityInfo
-	case "error":
-		return fswatcher.SeverityError
-	default:
-		return fswatcher.SeverityWarn
-	}
+// Info logs an info message with the specified operation, format, and arguments
+func (l *Logger) info(op Op, format string, args ...any) {
+	l.log(SeverityInfo, op, format, args...)
+}
+
+// Warn logs a warn message with the specified operation, format, and arguments
+func (l *Logger) warn(op Op, format string, args ...any) {
+	l.log(SeverityWarn, op, format, args...)
+}
+
+// Error logs an error message with the specified operation, format, and arguments
+func (l *Logger) error(op Op, format string, args ...any) {
+	l.log(SeverityError, op, format, args...)
 }
