@@ -139,6 +139,11 @@ func TestIntegration(t *testing.T) {
 	if err := cmd.Process.Signal(os.Interrupt); err != nil {
 		t.Logf("Failed to signal interrupt: %v", err)
 	}
+
+	if runtime.GOOS == "windows" {
+		_ = cmd.Process.Kill()
+	}
+
 	done := make(chan error, 1)
 	go func() {
 		done <- cmd.Wait()

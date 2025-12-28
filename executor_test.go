@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -39,11 +40,17 @@ func TestExecute(t *testing.T) {
 		output := captureOutput(func() {
 			Execute(context.Background(), job)
 		})
-		firstIndex := strings.Index(output, "first")
-		secondIndex := strings.Index(output, "second")
+
+		if strings.Contains(output, "Cmd with error") {
+			t.Fatalf("Execution failed. Output: %s", output)
+		}
+
+		cleanOutput := stripAnsi(output)
+		firstIndex := strings.Index(cleanOutput, "first")
+		secondIndex := strings.Index(cleanOutput, "second")
 
 		if firstIndex == -1 || secondIndex == -1 || secondIndex < firstIndex {
-			t.Errorf("Expected 'first' to be printed before 'second', but got '%s'", output)
+			t.Errorf("Expected 'first' to be printed before 'second'. Raw: %q, Clean: %q", output, cleanOutput)
 		}
 	})
 
@@ -75,12 +82,17 @@ func TestExecute(t *testing.T) {
 			Execute(context.Background(), job)
 		})
 
-		beforeIndex := strings.Index(output, "before")
-		mainIndex := strings.Index(output, "main")
-		afterIndex := strings.Index(output, "after")
+		if strings.Contains(output, "Cmd with error") {
+			t.Fatalf("Execution failed. Output: %s", output)
+		}
+
+		cleanOutput := stripAnsi(output)
+		beforeIndex := strings.Index(cleanOutput, "before")
+		mainIndex := strings.Index(cleanOutput, "main")
+		afterIndex := strings.Index(cleanOutput, "after")
 
 		if !(beforeIndex < mainIndex && mainIndex < afterIndex) {
-			t.Errorf("Expected 'before', 'main', and 'after' in order, but got '%s'", output)
+			t.Errorf("Expected 'before', 'main', and 'after' in order. Raw: %q, Clean: %q", output, cleanOutput)
 		}
 	})
 
@@ -138,4 +150,10 @@ func TestExecute(t *testing.T) {
 			t.Error("Expected process to be removed from the map, but it was not")
 		}
 	})
+}
+
+func stripAnsi(str string) string {
+	const ansi = "[\u001B\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[a-zA-Z\\d]*)*)?\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PRZcf-ntqry=><~]))"
+	re := regexp.MustCompile(ansi)
+	return re.ReplaceAllString(str, "")
 }
