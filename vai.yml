@@ -29,6 +29,11 @@ jobs:
             params:
               - fmt
               - .
+          - cmd: gocyclo
+            params:
+              - -over
+              - "15"
+              - .
       - cmd: go
         params:
           - install
