@@ -163,9 +163,13 @@ func TestExecute(t *testing.T) {
 		resetGlobals()
 
 		job := Job{
-			Cmd:    "sh",
-			Params: []string{"-c", "echo $TEST_VAR"},
-			Env:    map[string]string{"TEST_VAR": "hello from env"},
+			Cmd: "printenv",
+			Params: []string{
+				"TEST_VAR",
+			},
+			Env: map[string]string{
+				"TEST_VAR": "hello from env",
+			},
 		}
 
 		output := captureOutput(func() {
