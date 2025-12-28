@@ -371,14 +371,25 @@ func (v *Vai) printConfig() {
 		if len(job.Series) > 0 {
 			fmt.Println("  ", cyan("- Commands:"))
 
-			for _, seriesJob := range job.Series {
-				cmd := seriesJob.Cmd
-				if len(seriesJob.Params) > 0 {
-					cmd += " " + strings.Join(seriesJob.Params, " ")
+			var printSubJobs func([]Job, string)
+			printSubJobs = func(jobs []Job, indent string) {
+				for _, j := range jobs {
+					if j.Cmd != "" {
+						cmd := j.Cmd
+						if len(j.Params) > 0 {
+							cmd += " " + strings.Join(j.Params, " ")
+						}
+						fmt.Println(indent, white("- ", cmd))
+					} else if len(j.Parallel) > 0 {
+						fmt.Println(indent, white("- Parallel:"))
+						printSubJobs(j.Parallel, indent+"  ")
+					} else if len(j.Series) > 0 {
+						fmt.Println(indent, white("- Series:"))
+						printSubJobs(j.Series, indent+"  ")
+					}
 				}
-
-				fmt.Println("    ", white("- ", cmd))
 			}
+			printSubJobs(job.Series, "    ")
 		}
 
 		if len(job.Env) > 0 {
