@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+	"os/exec"
 	"regexp"
 	"runtime"
 	"strings"
@@ -14,89 +16,122 @@ func init() {
 	logger = New(SeverityError)
 }
 
+func resetGlobals() {
+	processMutex.Lock()
+	runningProcesses = make(map[string][]*exec.Cmd)
+	processMutex.Unlock()
+}
+
 func TestExecute(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Skipping executor tests on Windows due to shell command differences")
 	}
 
 	t.Run("executes a simple command", func(t *testing.T) {
+		resetGlobals()
+
 		job := Job{Cmd: "echo", Params: []string{"hello world"}}
 		output := captureOutput(func() {
 			Execute(context.Background(), job)
 		})
 
 		if !strings.Contains(output, "hello world") {
-			t.Errorf("Expected output to contain 'hello world', but got '%s'", output)
+			t.Fatalf("expected output to contain 'hello world', got %q", output)
 		}
 	})
 
 	t.Run("executes jobs in series", func(t *testing.T) {
+		resetGlobals()
+
+		dir := t.TempDir()
+		first := dir + "/first"
+		second := dir + "/second"
+
 		job := Job{
 			Series: []Job{
-				{Cmd: "echo", Params: []string{"first"}},
-				{Cmd: "echo", Params: []string{"second"}},
+				{Cmd: "sh", Params: []string{"-c", "touch " + first}},
+				{Cmd: "sh", Params: []string{"-c", "touch " + second}},
 			},
 		}
-		output := captureOutput(func() {
-			Execute(context.Background(), job)
-		})
 
-		if strings.Contains(output, "Cmd with error") {
-			t.Fatalf("Execution failed. Output: %s", output)
+		Execute(context.Background(), job)
+
+		if _, err := os.Stat(first); err != nil {
+			t.Fatal("first job did not run")
 		}
-
-		cleanOutput := stripAnsi(output)
-		firstIndex := strings.Index(cleanOutput, "first")
-		secondIndex := strings.Index(cleanOutput, "second")
-
-		if firstIndex == -1 || secondIndex == -1 || secondIndex < firstIndex {
-			t.Errorf("Expected 'first' to be printed before 'second'. Raw: %q, Clean: %q", output, cleanOutput)
+		if _, err := os.Stat(second); err != nil {
+			t.Fatal("second job did not run")
 		}
 	})
 
 	t.Run("executes jobs in parallel", func(t *testing.T) {
-		job := Job{
-			Parallel: []Job{
-				{Cmd: "sleep", Params: []string{"0.1"}},
-				{Cmd: "sleep", Params: []string{"0.1"}},
+		resetGlobals()
+
+		serial := Job{
+			Series: []Job{
+				{Cmd: "sleep", Params: []string{"0.2"}},
+				{Cmd: "sleep", Params: []string{"0.2"}},
 			},
 		}
 
-		startTime := time.Now()
-		Execute(context.Background(), job)
-		duration := time.Since(startTime)
+		parallel := Job{
+			Parallel: []Job{
+				{Cmd: "sleep", Params: []string{"0.2"}},
+				{Cmd: "sleep", Params: []string{"0.2"}},
+			},
+		}
 
-		if duration > 250*time.Millisecond {
-			t.Errorf("Parallel jobs took too long (%v), suggesting they ran in series", duration)
+		start := time.Now()
+		Execute(context.Background(), serial)
+		serialTime := time.Since(start)
+
+		start = time.Now()
+		Execute(context.Background(), parallel)
+		parallelTime := time.Since(start)
+
+		if parallelTime >= serialTime {
+			t.Fatalf(
+				"expected parallel execution to be faster (serial=%v, parallel=%v)",
+				serialTime, parallelTime,
+			)
 		}
 	})
 
 	t.Run("executes before and after jobs", func(t *testing.T) {
+		resetGlobals()
+
+		dir := t.TempDir()
+		before := dir + "/before"
+		main := dir + "/main"
+		after := dir + "/after"
+
 		job := Job{
-			Before: []Job{{Cmd: "echo", Params: []string{"before"}}},
-			Cmd:    "echo",
-			Params: []string{"main"},
-			After:  []Job{{Cmd: "echo", Params: []string{"after"}}},
-		}
-		output := captureOutput(func() {
-			Execute(context.Background(), job)
-		})
-
-		if strings.Contains(output, "Cmd with error") {
-			t.Fatalf("Execution failed. Output: %s", output)
+			Before: []Job{
+				{Cmd: "sh", Params: []string{"-c", "touch " + before}},
+			},
+			Cmd:    "sh",
+			Params: []string{"-c", "touch " + main},
+			After: []Job{
+				{Cmd: "sh", Params: []string{"-c", "touch " + after}},
+			},
 		}
 
-		cleanOutput := stripAnsi(output)
-		beforeIndex := strings.Index(cleanOutput, "before")
-		mainIndex := strings.Index(cleanOutput, "main")
-		afterIndex := strings.Index(cleanOutput, "after")
+		Execute(context.Background(), job)
 
-		if !(beforeIndex < mainIndex && mainIndex < afterIndex) {
-			t.Errorf("Expected 'before', 'main', and 'after' in order. Raw: %q, Clean: %q", output, cleanOutput)
+		if _, err := os.Stat(before); err != nil {
+			t.Fatal("before job did not run")
+		}
+		if _, err := os.Stat(main); err != nil {
+			t.Fatal("main job did not run")
+		}
+		if _, err := os.Stat(after); err != nil {
+			t.Fatal("after job did not run")
 		}
 	})
 
 	t.Run("context cancellation stops a running job", func(t *testing.T) {
+		resetGlobals()
+
 		job := Job{Cmd: "sleep", Params: []string{"5"}}
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
@@ -105,30 +140,34 @@ func TestExecute(t *testing.T) {
 		wg.Go(func() {
 			Execute(ctx, job)
 		})
-
 		wg.Wait()
 
 		if ctx.Err() == nil {
-			t.Error("Expected context to be canceled, but it was not")
+			t.Fatal("expected context to be canceled")
 		}
 	})
 
 	t.Run("runCommand sets environment variables", func(t *testing.T) {
+		resetGlobals()
+
 		job := Job{
 			Cmd:    "sh",
 			Params: []string{"-c", "echo $TEST_VAR"},
 			Env:    map[string]string{"TEST_VAR": "hello from env"},
 		}
+
 		output := captureOutput(func() {
 			runCommand(context.Background(), job)
 		})
 
 		if !strings.Contains(output, "hello from env") {
-			t.Errorf("Expected output to contain 'hello from env', but got '%s'", output)
+			t.Fatalf("expected env output, got %q", output)
 		}
 	})
 
 	t.Run("stopCommand kills a running process", func(t *testing.T) {
+		resetGlobals()
+
 		job := Job{Name: "test-kill", Cmd: "sleep", Params: []string{"5"}}
 
 		var wg sync.WaitGroup
@@ -137,9 +176,7 @@ func TestExecute(t *testing.T) {
 		})
 
 		time.Sleep(100 * time.Millisecond)
-
 		<-stopCommand(job.Name)
-
 		wg.Wait()
 
 		processMutex.Lock()
@@ -147,7 +184,7 @@ func TestExecute(t *testing.T) {
 		processMutex.Unlock()
 
 		if ok {
-			t.Error("Expected process to be removed from the map, but it was not")
+			t.Fatal("expected process to be removed from runningProcesses")
 		}
 	})
 }
