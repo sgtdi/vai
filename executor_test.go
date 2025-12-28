@@ -18,8 +18,20 @@ func init() {
 
 func resetGlobals() {
 	processMutex.Lock()
+	defer processMutex.Unlock()
+
+	for _, cmds := range runningProcesses {
+		for _, cmd := range cmds {
+			if cmd != nil && cmd.Process != nil {
+				_ = killProcess(cmd)
+			}
+		}
+	}
+
 	runningProcesses = make(map[string][]*exec.Cmd)
-	processMutex.Unlock()
+
+	// Small delay to allow OS to reap processes (needed on Linux CI)
+	time.Sleep(20 * time.Millisecond)
 }
 
 func TestExecute(t *testing.T) {
