@@ -168,24 +168,32 @@ func TestExecute(t *testing.T) {
 	t.Run("runCommand sets environment variables", func(t *testing.T) {
 		resetGlobals()
 
+		dir := t.TempDir()
+		out := dir + "/env"
+
 		job := Job{
-			Cmd: "printenv",
+			Cmd: "sh",
 			Params: []string{
-				"TEST_VAR",
+				"-c",
+				"echo \"$TEST_VAR\" > " + out,
 			},
 			Env: map[string]string{
 				"TEST_VAR": "hello from env",
 			},
 		}
 
-		output := captureOutput(func() {
-			runCommand(context.Background(), job)
-		})
+		runCommand(context.Background(), job)
 
-		if !strings.Contains(stripAnsi(output), "hello from env") {
-			t.Fatalf("expected env output, got %q", output)
+		data, err := os.ReadFile(out)
+		if err != nil {
+			t.Fatal("env file not created")
+		}
+
+		if strings.TrimSpace(string(data)) != "hello from env" {
+			t.Fatalf("unexpected env value: %q", string(data))
 		}
 	})
+
 
 	t.Run("stopCommand kills a running process", func(t *testing.T) {
 		resetGlobals()
