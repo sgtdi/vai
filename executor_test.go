@@ -160,7 +160,7 @@ func TestExecute(t *testing.T) {
 			runCommand(context.Background(), job)
 		})
 
-		if !strings.Contains(output, "hello from env") {
+		if !strings.Contains(stripAnsi(output), "hello from env") {
 			t.Fatalf("expected env output, got %q", output)
 		}
 	})
