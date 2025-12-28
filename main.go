@@ -12,7 +12,7 @@ import (
 	"github.com/sgtdi/fswatcher"
 )
 
-var version = "1.1.1"
+var version = "1.1.2"
 var logger *Logger
 
 // Vai contains vai fields
