@@ -42,15 +42,21 @@ func TestExecute(t *testing.T) {
 	t.Run("executes a simple command", func(t *testing.T) {
 		resetGlobals()
 
-		job := Job{Cmd: "echo", Params: []string{"hello world"}}
-		output := captureOutput(func() {
-			Execute(context.Background(), job)
-		})
+		dir := t.TempDir()
+		out := dir + "/out"
 
-		if !strings.Contains(output, "hello world") {
-			t.Fatalf("expected output to contain 'hello world', got %q", output)
+		job := Job{
+			Cmd:    "sh",
+			Params: []string{"-c", "touch " + out},
+		}
+
+		Execute(context.Background(), job)
+
+		if _, err := os.Stat(out); err != nil {
+			t.Fatal("command did not run")
 		}
 	})
+
 
 	t.Run("executes jobs in series", func(t *testing.T) {
 		resetGlobals()
