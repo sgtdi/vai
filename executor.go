@@ -139,6 +139,62 @@ func runCommand(ctx context.Context, job Job) {
 	if p, _ := ctx.Value(parallelCtxKey{}).(bool); !p {
 		logger.log(SeverityWarn, OpWarn, "Running cmd: %s", yellow(job.Cmd, " ", job.Params))
 	}
+
+	cmd, stdoutPipe, stderrPipe, err := setupCmd(ctx, job)
+	if err != nil {
+		if ctx.Err() == nil {
+			logger.log(SeverityError, OpError, "%v", err)
+		}
+		return
+	}
+
+	// Run and wait
+	startTime := time.Now()
+	if err := cmd.Start(); err != nil {
+		if ctx.Err() == nil {
+			logger.log(SeverityError, OpError, "Failed to start cmd: %v", err)
+		}
+		return
+	}
+	logger.log(SeverityDebug, OpWarn, "Executor: Started new process with PID: %d for job: %s", cmd.Process.Pid, job.Name)
+
+	// Stream stdout and stderr in goroutines
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		streamOutput(stdoutPipe, os.Stdout)
+	}()
+	go func() {
+		defer wg.Done()
+		streamOutput(stderrPipe, os.Stderr)
+	}()
+
+	registerProcess(job.Name, cmd)
+
+	err = cmd.Wait()
+	wg.Wait() // Wait for IO to finish
+
+	duration := time.Since(startTime)
+
+	cleanupProcess(job.Name, cmd)
+
+	cmdStr := job.Cmd
+	if len(job.Params) > 0 {
+		cmdStr += " " + strings.Join(job.Params, " ")
+	}
+
+	if err != nil {
+		// Killed by the context
+		if ctx.Err() == nil {
+			logger.log(SeverityError, OpError, "Cmd with error: %s %v (%s)", green("[", cmdStr, "]"), red(err), cyan(duration.Round(time.Millisecond)))
+		}
+	} else {
+		logger.log(SeverityWarn, OpSuccess, "Cmd successfully: %s (%s)", green(cmdStr), cyan(duration.Round(time.Millisecond)))
+	}
+}
+
+func setupCmd(ctx context.Context, job Job) (*exec.Cmd, io.ReadCloser, io.ReadCloser, error) {
 	cmd := exec.CommandContext(ctx, job.Cmd, job.Params...)
 
 	// Set up environment variables
@@ -153,88 +209,48 @@ func runCommand(ctx context.Context, job Job) {
 	// Create pipes for stdout and stderr
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		logger.log(SeverityError, OpError, "Failed to create stdout pipe: %v", err)
-		return
+		return nil, nil, nil, fmt.Errorf("failed to create stdout pipe: %v", err)
 	}
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
-		logger.log(SeverityError, OpError, "Failed to create stderr pipe: %v", err)
-		return
+		return nil, nil, nil, fmt.Errorf("failed to create stderr pipe: %v", err)
 	}
+	return cmd, stdoutPipe, stderrPipe, nil
+}
 
-	// Run and wait
-	startTime := time.Now()
-	if err := cmd.Start(); err != nil {
-		if ctx.Err() == nil {
-			logger.log(SeverityError, OpError, "Failed to start cmd: %v", err)
+func streamOutput(reader io.Reader, writer io.Writer) {
+	buf := make([]byte, 1024)
+	for {
+		n, err := reader.Read(buf)
+		if n > 0 {
+			fmt.Fprint(writer, gray(string(buf[:n])))
 		}
-		return
-	}
-	logger.log(SeverityDebug, OpWarn, "Executor: Started new process with PID: %d for job: %s", cmd.Process.Pid, job.Name)
-
-	streamOutput := func(reader io.Reader, writer io.Writer) {
-		buf := make([]byte, 1024)
-		for {
-			n, err := reader.Read(buf)
-			if n > 0 {
-				fmt.Fprint(writer, gray(string(buf[:n])))
-			}
-			if err != nil {
-				break
-			}
+		if err != nil {
+			break
 		}
 	}
+}
 
-	// Stream stdout and stderr in goroutines
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		streamOutput(stdoutPipe, os.Stdout)
-	}()
-	go func() {
-		defer wg.Done()
-		streamOutput(stderrPipe, os.Stderr)
-	}()
-
-	// Register the command
-	if job.Name != "" {
+func registerProcess(jobName string, cmd *exec.Cmd) {
+	if jobName != "" {
 		processMutex.Lock()
-		runningProcesses[job.Name] = append(runningProcesses[job.Name], cmd)
+		runningProcesses[jobName] = append(runningProcesses[jobName], cmd)
 		processMutex.Unlock()
 	}
+}
 
-	err = cmd.Wait()
-	wg.Wait() // Wait for IO to finish
-
-	duration := time.Since(startTime)
-
-	// If the command finishes on its own, remove it from the running processes map
-	if job.Name != "" {
+func cleanupProcess(jobName string, cmd *exec.Cmd) {
+	if jobName != "" {
 		processMutex.Lock()
 		// Find and remove the specific command from the slice
-		if cmds, ok := runningProcesses[job.Name]; ok {
+		if cmds, ok := runningProcesses[jobName]; ok {
 			for i, c := range cmds {
 				if c == cmd {
-					runningProcesses[job.Name] = slices.Delete(cmds, i, i+1)
+					runningProcesses[jobName] = slices.Delete(cmds, i, i+1)
 					break
 				}
 			}
 		}
 		processMutex.Unlock()
-	}
-
-	cmdStr := job.Cmd
-	if len(job.Params) > 0 {
-		cmdStr += " " + strings.Join(job.Params, " ")
-	}
-
-	if err != nil {
-		// Killed by the context
-		if ctx.Err() == nil {
-			logger.log(SeverityError, OpError, "Cmd with error: %s %v (%s)", green("[", cmdStr, "]"), red(err), cyan(duration.Round(time.Millisecond)))
-		}
-	} else {
-		logger.log(SeverityWarn, OpSuccess, "Cmd successfully: %s (%s)", green(cmdStr), cyan(duration.Round(time.Millisecond)))
 	}
 }

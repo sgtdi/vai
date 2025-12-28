@@ -12,7 +12,7 @@ import (
 	"github.com/sgtdi/fswatcher"
 )
 
-var version = "1.1.0"
+var version = "1.1.1"
 var logger *Logger
 
 // Vai contains vai fields
@@ -38,94 +38,7 @@ type Config struct {
 func main() {
 	args := os.Args[1:]
 
-	var cmdFlags []string
-	var positionalArgs []string
-	var path, regex, env, configFile, saveFile string = "", "", "", "vai.yml", "vai.yml"
-	var help, debug, versionFlag, saveIsSet bool
-
-	knownFlagsWithArg := map[string]bool{
-		"cmd": true, "path": true, "env": true, "regex": true,
-	}
-	knownBoolFlags := map[string]bool{
-		"help": true, "debug": true, "version": true, "save": true,
-	}
-	shortFlags := map[string]string{
-		"c": "cmd", "p": "path", "e": "env", "r": "regex", "s": "save",
-		"h": "help", "d": "debug", "v": "version",
-	}
-
-	i := 0
-	for i < len(args) {
-		arg := args[i]
-
-		isKnownFlag := false
-		var flagName string
-		if name, found := strings.CutPrefix(arg, "--"); found {
-			if knownFlagsWithArg[name] || knownBoolFlags[name] {
-				isKnownFlag = true
-				flagName = name
-			}
-		} else if name, found := strings.CutPrefix(arg, "-"); found {
-			if longName, ok := shortFlags[name]; ok {
-				isKnownFlag = true
-				flagName = longName
-			}
-		}
-
-		if isKnownFlag {
-			if flagName == "cmd" {
-				var cmdParts []string
-				i++
-				for i < len(args) {
-					nextArg := args[i]
-					isNextArgAFlag := false
-					if strings.HasPrefix(nextArg, "-") {
-						nextFlagName := strings.TrimLeft(nextArg, "-")
-						if knownFlagsWithArg[nextFlagName] || knownBoolFlags[nextFlagName] {
-							isNextArgAFlag = true
-						}
-					}
-
-					if isNextArgAFlag {
-						i--
-						break
-					}
-					cmdParts = append(cmdParts, nextArg)
-					i++
-				}
-				if len(cmdParts) > 0 {
-					cmdFlags = append(cmdFlags, strings.Join(cmdParts, " "))
-				}
-			} else if knownFlagsWithArg[flagName] {
-				if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
-					value := args[i+1]
-					switch flagName {
-					case "regex":
-						regex = value
-					case "env":
-						env = value
-					}
-					i++
-				}
-			} else if knownBoolFlags[flagName] {
-				switch flagName {
-				case "help":
-					help = true
-				case "debug":
-					debug = true
-				case "version":
-					versionFlag = true
-				case "save":
-					saveIsSet = true
-				}
-			}
-		} else {
-			// The rest of the args belong to the cmd
-			positionalArgs = args[i:]
-			break
-		}
-		i++
-	}
+	cmdFlags, positionalArgs, path, regex, env, configFile, saveFile, help, debug, versionFlag, saveIsSet := parseCLIArgs(args)
 
 	severity := SeverityWarn
 	if debug {
@@ -192,6 +105,112 @@ func main() {
 		logger.log(SeverityInfo, OpSuccess, "Configuration saved successfully")
 
 	}
+}
+
+func parseCLIArgs(args []string) (cmdFlags, positionalArgs []string, path, regex, env, configFile, saveFile string, help, debug, versionFlag, saveIsSet bool) {
+	configFile = "vai.yml"
+	saveFile = "vai.yml"
+
+	knownFlagsWithArg := map[string]bool{
+		"cmd": true, "path": true, "env": true, "regex": true,
+	}
+	knownBoolFlags := map[string]bool{
+		"help": true, "debug": true, "version": true, "save": true,
+	}
+	shortFlags := map[string]string{
+		"c": "cmd", "p": "path", "e": "env", "r": "regex", "s": "save",
+		"h": "help", "d": "debug", "v": "version",
+	}
+
+	i := 0
+	for i < len(args) {
+		arg := args[i]
+		isKnownFlag, flagName := identifyFlag(arg, knownFlagsWithArg, knownBoolFlags, shortFlags)
+
+		if isKnownFlag {
+			if flagName == "cmd" {
+				var cmd string
+				cmd, i = parseCmdFlag(args, i, knownFlagsWithArg, knownBoolFlags)
+				if cmd != "" {
+					cmdFlags = append(cmdFlags, cmd)
+				}
+			} else if knownFlagsWithArg[flagName] {
+				var value string
+				value, i = parseValueFlag(args, i)
+				switch flagName {
+				case "regex":
+					regex = value
+				case "env":
+					env = value
+				case "path":
+					path = value
+				}
+			} else if knownBoolFlags[flagName] {
+				switch flagName {
+				case "help":
+					help = true
+				case "debug":
+					debug = true
+				case "version":
+					versionFlag = true
+				case "save":
+					saveIsSet = true
+				}
+			}
+		} else {
+			// The rest of the args belong to the cmd
+			positionalArgs = args[i:]
+			break
+		}
+		i++
+	}
+	return
+}
+
+func identifyFlag(arg string, knownFlagsWithArg, knownBoolFlags map[string]bool, shortFlags map[string]string) (bool, string) {
+	if name, found := strings.CutPrefix(arg, "--"); found {
+		if knownFlagsWithArg[name] || knownBoolFlags[name] {
+			return true, name
+		}
+	} else if name, found := strings.CutPrefix(arg, "-"); found {
+		if longName, ok := shortFlags[name]; ok {
+			return true, longName
+		}
+	}
+	return false, ""
+}
+
+func parseCmdFlag(args []string, currentIndex int, knownFlagsWithArg, knownBoolFlags map[string]bool) (string, int) {
+	var cmdParts []string
+	i := currentIndex + 1
+	for i < len(args) {
+		nextArg := args[i]
+		isNextArgAFlag := false
+		if strings.HasPrefix(nextArg, "-") {
+			nextFlagName := strings.TrimLeft(nextArg, "-")
+			if knownFlagsWithArg[nextFlagName] || knownBoolFlags[nextFlagName] {
+				isNextArgAFlag = true
+			}
+		}
+
+		if isNextArgAFlag {
+			i--
+			break
+		}
+		cmdParts = append(cmdParts, nextArg)
+		i++
+	}
+	if len(cmdParts) > 0 {
+		return strings.Join(cmdParts, " "), i
+	}
+	return "", i
+}
+
+func parseValueFlag(args []string, currentIndex int) (string, int) {
+	if currentIndex+1 < len(args) && !strings.HasPrefix(args[currentIndex+1], "-") {
+		return args[currentIndex+1], currentIndex + 1
+	}
+	return "", currentIndex
 }
 
 // NewVai parse config struct with all possible flags and args

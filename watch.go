@@ -85,6 +85,44 @@ func aggregateRegex(vai *Vai) (incPatterns, excPatterns []string) {
 // startWatch dispatches events to the appropriate jobs
 func startWatch(ctx context.Context, w *Vai) {
 	var err error
+
+	startJobs(w)
+
+	if w.Config.Path == "" {
+		logger.log(SeverityError, OpError, "No path defined, nothing to vai")
+		return
+	}
+
+	w.fswatcher, err = configureWatcher(w)
+	if err != nil {
+		logger.log(SeverityError, OpError, "Failed to create watcher: %v", err)
+		return
+	}
+
+	// Get the current working directory to display relative paths
+	cwd, err := os.Getwd()
+	if err != nil {
+		logger.log(SeverityError, OpError, "Could not get current working directory: %v", err)
+		cwd = "" // Ensure cwd is empty on error
+	}
+
+	// Start the event listener
+	go runEventLoop(ctx, w, cwd)
+
+	// Start watching
+	if err := w.fswatcher.Watch(ctx); err != nil {
+		logger.log(SeverityError, OpError, "Failed to start vai: %v", err)
+	}
+
+	// Add the global path
+	if err := w.fswatcher.AddPath(w.Config.Path); err != nil {
+		if ctx.Err() == nil {
+			logger.log(SeverityError, OpError, "Failed to vai path %s: %v", w.Config.Path, err)
+		}
+	}
+}
+
+func startJobs(w *Vai) {
 	var jobNames []string
 	for jobName := range w.Jobs {
 		jobNames = append(jobNames, jobName)
@@ -102,12 +140,9 @@ func startWatch(ctx context.Context, w *Vai) {
 			Execute(jobCtx, j)
 		}(job)
 	}
+}
 
-	if w.Config.Path == "" {
-		logger.log(SeverityError, OpError, "No path defined, nothing to vai")
-		return
-	}
-
+func configureWatcher(w *Vai) (fswatcher.Watcher, error) {
 	// Aggregate regex patterns
 	incRegex, excRegex := aggregateRegex(w)
 
@@ -130,63 +165,39 @@ func startWatch(ctx context.Context, w *Vai) {
 		opts = append(opts, fswatcher.WithLogFile("debug.log"))
 	}
 
-	w.fswatcher, err = fswatcher.New(opts...)
-	if err != nil {
-		logger.log(SeverityError, OpError, "Failed to create watcher: %v", err)
-		return
-	}
+	return fswatcher.New(opts...)
+}
 
-	// Get the current working directory to display relative paths
-	cwd, err := os.Getwd()
-	if err != nil {
-		logger.log(SeverityError, OpError, "Could not get current working directory: %v", err)
-		cwd = "" // Ensure cwd is empty on error
-	}
-
-	// Start the event listener
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
+func runEventLoop(ctx context.Context, w *Vai, cwd string) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case event, ok := <-w.fswatcher.Events():
+			if !ok {
 				return
-			case event, ok := <-w.fswatcher.Events():
-				if !ok {
-					return
-				}
-				if w.Config.ClearCli {
-					// Clear the console before displaying the change
-					ClearConsole()
-				}
-
-				// Determine the path to display
-				displayPath := event.Path
-				if len(cwd) > 0 {
-					if relPath, err := filepath.Rel(cwd, event.Path); err == nil {
-						displayPath = relPath
-					}
-				}
-
-				logger.log(SeverityWarn, OpTrigger, "%s", purple(fmt.Sprintf("Change detected: %s", displayPath)))
-				// Dispatch the event
-				dispatch(event.Path, w)
-			case err, ok := <-w.fswatcher.Dropped():
-				if !ok {
-					return
-				}
-				logger.log(SeverityError, OpError, "Watch error: %v", err)
 			}
-		}
-	}()
+			if w.Config.ClearCli {
+				// Clear the console before displaying the change
+				ClearConsole()
+			}
 
-	// Start watching
-	if err := w.fswatcher.Watch(ctx); err != nil {
-		logger.log(SeverityError, OpError, "Failed to start vai: %v", err)
-	}
+			// Determine the path to display
+			displayPath := event.Path
+			if len(cwd) > 0 {
+				if relPath, err := filepath.Rel(cwd, event.Path); err == nil {
+					displayPath = relPath
+				}
+			}
 
-	// Add the global path
-	if err := w.fswatcher.AddPath(w.Config.Path); err != nil {
-		if ctx.Err() == nil {
-			logger.log(SeverityError, OpError, "Failed to vai path %s: %v", w.Config.Path, err)
+			logger.log(SeverityWarn, OpTrigger, "%s", purple(fmt.Sprintf("Change detected: %s", displayPath)))
+			// Dispatch the event
+			dispatch(event.Path, w)
+		case err, ok := <-w.fswatcher.Dropped():
+			if !ok {
+				return
+			}
+			logger.log(SeverityError, OpError, "Watch error: %v", err)
 		}
 	}
 }
