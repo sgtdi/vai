@@ -7,73 +7,71 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
-	"time"
-
-	"github.com/sgtdi/fswatcher"
+	"syscall"
 )
 
-var version = "1.1.2"
+var version = "1.2.0"
 var logger *Logger
 
-// Vai contains vai fields
-type Vai struct {
-	Config     Config            `yaml:"config"`
-	Jobs       map[string]Job    `yaml:"jobs"`
-	jobManager *JobManager       `yaml:"-"`
-	fswatcher  fswatcher.Watcher `yaml:"-"`
+// Args struct for command line arguments
+type Args struct {
+	CmdFlags       []string
+	PositionalArgs []string
+	Path           string
+	Regex          string
+	Env            string
+	ConfigFile     string
+	SaveFile       string
+	Help           bool
+	Debug          bool
+	Version        bool
+	Save           bool
 }
 
-// Config options for file vai.yml
-type Config struct {
-	Path             string        `yaml:"path"`
-	Severity         string        `yaml:"severity,omitempty"`
-	ClearCli         bool          `yaml:"clearCli,omitempty"`
-	Cooldown         time.Duration `yaml:"cooldown,omitempty"`
-	BufferSize       int           `yaml:"bufferSize,omitempty"`
-	BatchingDuration time.Duration `yaml:"batchingDuration,omitempty"`
-
-	serverityLevel fswatcher.Severity
-}
-
+// main is the entry point of the application
 func main() {
 	args := os.Args[1:]
 
-	cmdFlags, positionalArgs, path, regex, env, configFile, saveFile, help, debug, versionFlag, saveIsSet := parseCLIArgs(args)
+	cli := parseArgs(args)
 
-	severity := SeverityWarn
-	if debug {
-		severity = SeverityDebug
+	// Set severity level based on debug flag
+	bootstrapSeverity := SeverityWarn
+	if cli.Debug {
+		bootstrapSeverity = SeverityDebug
 	}
-	logger = New(severity)
+	logger = newLogger(bootstrapSeverity)
 
+	// Print startup message
 	fmt.Print(purple("\n--------------\n"))
 	fmt.Printf("%sVai v%s%s\n", ColorPurple, version, ColorPurple)
 	fmt.Print(purple("--------------\n\n"))
 
 	// Print current version and exit
-	if versionFlag {
+	if cli.Version {
 		os.Exit(0)
 	}
 
-	v := NewVai(
-		cmdFlags,
-		positionalArgs,
-		path,
-		regex,
-		env,
-		configFile,
-		help,
-		severity,
-	)
+	// Init vai
+	v, err := newVai(cli)
+	if err != nil {
+		logger.log(SeverityError, OpError, "Failed to initialize Vai: %v", err)
+		printHelp()
+		os.Exit(1)
+	}
 
-	v.jobManager = NewJobManager()
-
+	// Initialize logger based on vai config and context
+	logger = newLogger(parseSeverity(v.Config.Severity))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Debug print current vai config
+	if v.Config.Severity == SeverityDebug.String() {
+		printConfig(v)
+	}
+
 	// Handle shutdown signals
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-sigChan
 		logger.log(SeverityDebug, OpSuccess, "Shutdown signal received")
@@ -83,9 +81,8 @@ func main() {
 	// Start the watcher in a goroutine
 	var wg sync.WaitGroup
 	wg.Go(func() {
-		startWatch(ctx, v)
+		v.startWatch(ctx)
 	})
-
 	logger.log(SeverityWarn, OpSuccess, "File watcher started...")
 
 	// Wait for the context to be canceled
@@ -93,23 +90,74 @@ func main() {
 
 	// Wait for the watcher to finish
 	wg.Wait()
-
 	logger.log(SeverityInfo, OpWarn, "Shutting down...")
-	v.jobManager.StopAll()
+	v.manager.stop()
 
-	if saveIsSet {
-		logger.log(SeverityInfo, OpWarn, "Saving configuration to %s...", saveFile)
-		if err := v.Save(saveFile); err != nil {
+	// Save configuration if requested
+	if cli.Save {
+		logger.log(SeverityInfo, OpWarn, "Saving configuration to %s...", cli.SaveFile)
+		if err := v.save(cli.SaveFile); err != nil {
 			logger.log(SeverityError, OpError, "Failed to save config file: %v", err)
 		}
 		logger.log(SeverityInfo, OpSuccess, "Configuration saved successfully")
-
 	}
 }
 
-func parseCLIArgs(args []string) (cmdFlags, positionalArgs []string, path, regex, env, configFile, saveFile string, help, debug, versionFlag, saveIsSet bool) {
-	configFile = "vai.yml"
-	saveFile = "vai.yml"
+// handleCmd parses the command flag
+func (c *Args) handleCmd(attachedValue string, args []string, currentIndex int, knownFlagsWithArg, knownBoolFlags map[string]bool, shortFlags map[string]string) int {
+	if attachedValue != "" {
+		c.CmdFlags = append(c.CmdFlags, attachedValue)
+		return currentIndex
+	}
+	var cmd string
+	var newIndex int
+	cmd, newIndex = parseCmdFlag(args, currentIndex, knownFlagsWithArg, knownBoolFlags, shortFlags)
+	if cmd != "" {
+		c.CmdFlags = append(c.CmdFlags, cmd)
+	}
+	return newIndex
+}
+
+// handleArgFlag parses flags with arguments
+func (c *Args) handleArgFlag(flagName, attachedValue string, args []string, currentIndex int) int {
+	var value string
+	newIndex := currentIndex
+	if attachedValue != "" {
+		value = attachedValue
+	} else {
+		value, newIndex = parseValueFlag(args, currentIndex)
+	}
+	switch flagName {
+	case "regex":
+		c.Regex = value
+	case "env":
+		c.Env = value
+	case "path":
+		c.Path = value
+	}
+	return newIndex
+}
+
+// handleBoolFlag parses boolean flags
+func (c *Args) handleBoolFlag(flagName string) {
+	switch flagName {
+	case "help":
+		c.Help = true
+	case "debug":
+		c.Debug = true
+	case "version":
+		c.Version = true
+	case "save":
+		c.Save = true
+	}
+}
+
+// parseArgs parses command line arguments
+func parseArgs(args []string) *Args {
+	c := &Args{
+		ConfigFile: "vai.yml",
+		SaveFile:   "vai.yml",
+	}
 
 	knownFlagsWithArg := map[string]bool{
 		"cmd": true, "path": true, "env": true, "regex": true,
@@ -125,73 +173,63 @@ func parseCLIArgs(args []string) (cmdFlags, positionalArgs []string, path, regex
 	i := 0
 	for i < len(args) {
 		arg := args[i]
-		isKnownFlag, flagName := identifyFlag(arg, knownFlagsWithArg, knownBoolFlags, shortFlags)
+		isKnownFlag, flagName, attachedValue := identifyFlag(arg, knownFlagsWithArg, knownBoolFlags, shortFlags)
 
 		if isKnownFlag {
 			if flagName == "cmd" {
-				var cmd string
-				cmd, i = parseCmdFlag(args, i, knownFlagsWithArg, knownBoolFlags)
-				if cmd != "" {
-					cmdFlags = append(cmdFlags, cmd)
-				}
+				i = c.handleCmd(attachedValue, args, i, knownFlagsWithArg, knownBoolFlags, shortFlags)
 			} else if knownFlagsWithArg[flagName] {
-				var value string
-				value, i = parseValueFlag(args, i)
-				switch flagName {
-				case "regex":
-					regex = value
-				case "env":
-					env = value
-				case "path":
-					path = value
-				}
+				i = c.handleArgFlag(flagName, attachedValue, args, i)
 			} else if knownBoolFlags[flagName] {
-				switch flagName {
-				case "help":
-					help = true
-				case "debug":
-					debug = true
-				case "version":
-					versionFlag = true
-				case "save":
-					saveIsSet = true
-				}
+				c.handleBoolFlag(flagName)
 			}
 		} else {
 			// The rest of the args belong to the cmd
-			positionalArgs = args[i:]
+			c.PositionalArgs = args[i:]
 			break
 		}
 		i++
 	}
-	return
+	return c
 }
 
-func identifyFlag(arg string, knownFlagsWithArg, knownBoolFlags map[string]bool, shortFlags map[string]string) (bool, string) {
-	if name, found := strings.CutPrefix(arg, "--"); found {
-		if knownFlagsWithArg[name] || knownBoolFlags[name] {
-			return true, name
-		}
-	} else if name, found := strings.CutPrefix(arg, "-"); found {
-		if longName, ok := shortFlags[name]; ok {
-			return true, longName
-		}
+// identifyFlag checks if an argument is a known flag
+func identifyFlag(arg string, knownFlagsWithArg, knownBoolFlags map[string]bool, shortFlags map[string]string) (bool, string, string) {
+	name := ""
+	value := ""
+	var found bool
+	if name, found = strings.CutPrefix(arg, "--"); found {
+	} else if name, found = strings.CutPrefix(arg, "-"); found {
+	} else {
+		return false, "", ""
 	}
-	return false, ""
+
+	// Check for =
+	if before, after, found := strings.Cut(name, "="); found {
+		name = before
+		value = after
+	}
+
+	// Check long flags
+	if knownFlagsWithArg[name] || knownBoolFlags[name] {
+		return true, name, value
+	}
+
+	// Check short flags
+	if longName, ok := shortFlags[name]; ok {
+		return true, longName, value
+	}
+
+	return false, "", ""
 }
 
-func parseCmdFlag(args []string, currentIndex int, knownFlagsWithArg, knownBoolFlags map[string]bool) (string, int) {
+// parseCmdFlag extracts the command from arguments
+func parseCmdFlag(args []string, currentIndex int, knownFlagsWithArg, knownBoolFlags map[string]bool, shortFlags map[string]string) (string, int) {
 	var cmdParts []string
 	i := currentIndex + 1
 	for i < len(args) {
 		nextArg := args[i]
-		isNextArgAFlag := false
-		if strings.HasPrefix(nextArg, "-") {
-			nextFlagName := strings.TrimLeft(nextArg, "-")
-			if knownFlagsWithArg[nextFlagName] || knownBoolFlags[nextFlagName] {
-				isNextArgAFlag = true
-			}
-		}
+		isNextArgAFlag, _, _ := identifyFlag(nextArg, knownFlagsWithArg, knownBoolFlags, shortFlags)
 
 		if isNextArgAFlag {
 			i--
@@ -206,6 +244,7 @@ func parseCmdFlag(args []string, currentIndex int, knownFlagsWithArg, knownBoolF
 	return "", i
 }
 
+// parseValueFlag extracts the value for a flag
 func parseValueFlag(args []string, currentIndex int) (string, int) {
 	if currentIndex+1 < len(args) && !strings.HasPrefix(args[currentIndex+1], "-") {
 		return args[currentIndex+1], currentIndex + 1
@@ -213,65 +252,8 @@ func parseValueFlag(args []string, currentIndex int) (string, int) {
 	return "", currentIndex
 }
 
-// NewVai parse config struct with all possible flags and args
-func NewVai(cmdFlags, positionalArgs []string, path, regex, env, configFile string, help bool, severity Severity) *Vai {
-	var err error
-	v := &Vai{}
-
-	// Handle help flag
-	if help {
-		v.printHelp()
-	}
-
-	if len(cmdFlags) > 0 || len(positionalArgs) > 0 {
-		logger.log(SeverityDebug, OpInfo, "Loading commands from CLI")
-		seriesCmds, singleCmd := v.handleCmds(cmdFlags, positionalArgs)
-		patterns := parseRegex(regex)
-		envMap := parseEnv(env)
-
-		// Default to current directory if path is not specified in CLI mode
-		cliPath := path
-		if cliPath == "" {
-			cliPath = "."
-		}
-		v = FromCLI(seriesCmds, singleCmd, cliPath, patterns, envMap)
-	} else {
-		// Fallback to config with no cmds
-		if fileExists(configFile) {
-			logger.log(SeverityDebug, OpInfo, "Loading config from file")
-			v, err = FromFile(configFile, path)
-			if err != nil {
-				logger.log(SeverityError, OpError, "Failed to load config file: %v", err)
-				os.Exit(1)
-			}
-			// Update logger level if config file has severity and no CLI override
-			if v.Config.Severity != "" && severity == SeverityWarn {
-				logger = New(ParseSeverity(v.Config.Severity))
-			}
-			logger.log(SeverityInfo, OpSuccess, "Using config %s", cyan(configFile))
-		} else {
-			// If none show help
-			logger.log(SeverityError, OpError, "No config file found and no command given")
-			v.printHelp()
-		}
-	}
-
-	// Set debug verbosity if requested by flag
-	if severity == SeverityDebug {
-		v.Config.Severity = severity.String()
-	}
-
-	// Set defaults values
-	v.SetDefaults()
-	// Print current Vai configuration
-	if v.Config.Severity == SeverityDebug.String() {
-		v.printConfig()
-	}
-	return v
-}
-
 // printHelp prints usage help info
-func (v *Vai) printHelp() {
+func printHelp() {
 	// Usage
 	fmt.Println(
 		yellow("Usage:"),
@@ -342,15 +324,11 @@ func (v *Vai) printHelp() {
 		cyan("-h, --help"),
 		"Show this help message",
 	)
-
-	os.Exit(0)
 }
 
 // printConfig prints the current config
-func (v *Vai) printConfig() {
+func printConfig(v *Vai) {
 	fmt.Println(yellow("--- Global Config ---"))
-
-	fmt.Println(cyan("- Path:"), v.Config.Path)
 	fmt.Println(cyan("- Cooldown:"), v.Config.Cooldown)
 	fmt.Println(cyan("- Batching Duration:"), v.Config.BatchingDuration)
 	fmt.Println(cyan("- Buffer Size:"), v.Config.BufferSize)
@@ -425,57 +403,4 @@ func (v *Vai) printConfig() {
 	}
 
 	fmt.Println(yellow("------------"))
-}
-
-// handleCmds determines the commands to run
-func (v *Vai) handleCmds(cmdFlags, positionalArgs []string) ([]string, []string) {
-	if len(cmdFlags) > 0 {
-		// --cmd flags take precedence
-		return cmdFlags, nil
-	}
-	if len(positionalArgs) > 0 {
-		// Positional args are treated as a single command with args
-		return nil, positionalArgs
-	}
-	logger.log(SeverityError, OpError, "No command provided, use --help for usage details")
-	os.Exit(1)
-	return nil, nil
-}
-
-// fileExists checks if a file exists and is not a dir
-func fileExists(filename string) bool {
-	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return !info.IsDir()
-}
-
-// parseRegex determines the file patterns to watch
-func parseRegex(regexFlag string) []string {
-	if regexFlag != "" {
-		patterns := strings.Split(regexFlag, ",")
-		for i, p := range patterns {
-			patterns[i] = strings.TrimSpace(p)
-		}
-		return patterns
-	}
-	// Default patterns
-	return []string{".*\\.go$", "^go\\.mod$", "^go\\.sum$"}
-}
-
-// handleEnv parses the env variables
-func parseEnv(envFlag string) map[string]string {
-	envMap := make(map[string]string)
-
-	if envFlag != "" {
-		pairs := strings.Split(envFlag, ",")
-		for _, pair := range pairs {
-			trimmedPair := strings.TrimSpace(pair)
-			if key, value, found := strings.Cut(trimmedPair, "="); found {
-				envMap[key] = value
-			}
-		}
-	}
-	return envMap
 }

@@ -55,7 +55,7 @@ func TestLogger_Log(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			l := New(tc.loggerLevel)
+			l := newLogger(tc.loggerLevel)
 			output := captureOutput(func() {
 				l.log(tc.logLevel, tc.op, "%s", tc.message)
 			})
@@ -77,7 +77,7 @@ func TestLogger_Log(t *testing.T) {
 }
 
 func TestLogger_HelperMethods(t *testing.T) {
-	l := New(SeverityDebug)
+	l := newLogger(SeverityDebug)
 
 	t.Run("Debug", func(t *testing.T) {
 		output := captureOutput(func() {
@@ -131,9 +131,9 @@ func TestParseSeverity(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		got := ParseSeverity(tc.input)
+		got := parseSeverity(tc.input)
 		if got != tc.expected {
-			t.Errorf("ParseSeverity(%q) = %v, want %v", tc.input, got, tc.expected)
+			t.Errorf("parseSeverity(%q) = %v, want %v", tc.input, got, tc.expected)
 		}
 	}
 }
