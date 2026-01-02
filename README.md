@@ -1,196 +1,462 @@
-`Vai` **(Italian for "Go!", literally telling your Go code to *go*)** is the only hot reload system for Go that integrates its own file watcher [fswatcher](https://github.com/sgtdi/fswatcher) directly, eliminating external dependencies. This streamlined, self-contained design means a shorter and clearer chain of responsibility, making bug tracking and resolution significantly more efficient.**
-
-# vai: Hot reload Go apps and projects
-
 [![Go Reference](https://pkg.go.dev/badge/github.com/sgtdi/vai.svg)](https://pkg.go.dev/github.com/sgtdi/vai)
 [![Go Report Card](https://goreportcard.com/badge/github.com/sgtdi/vai)](https://goreportcard.com/report/github.com/sgtdi/vai)
 [![CI](https://github.com/sgtdi/vai/actions/workflows/ci-test.yml/badge.svg)](https://github.com/sgtdi/vai/actions/workflows/ci-test.yml)
 [![CodeQL](https://github.com/sgtdi/vai/actions/workflows/codeql.yml/badge.svg)](https://github.com/sgtdi/vai/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+# Vai: Hot reload Go apps and projects
+
+> *Vai (Italian: "Go!") - Because your code should go as fast as you do*
+
+**Stop the endless cycle of Ctrl+C → rebuild → restart** VAI automatically rebuilds and restarts your Go applications the instant you save a file. Zero configuration, hassle and third-party dependencies.
+
 <img src="https://raw.githubusercontent.com/sgtdi/watch/refs/heads/dev/examples/vai-go-hot-reload.png" width="100%" alt="vai golang hot reload terminal interface">
-
-Automatic **hot reload** for **Go** development. Zero configuration CLI tool for Go developers seeking instant feedback and automated workflows.
-
-`Vai` is a lightweight, zero-dependency **CLI tool** that automatically rebuilds and restarts your Go applications when files change. Perfect for Go web development, microservices, REST APIs, and any Go project requiring rapid iteration.
-
-Stop the tedious **cycle of manually stopping, rebuilding, and restarting** your project. `Vai` automates this process, giving you instant feedback on every file change and commands execution. It's built for developers who value speed and simplicity, offering a **seamless, configuration-free experience** right out of the box.
 
 ## Index
 
-- [Features](#features)
-- [Why vai](#why-vai)
-- [Installation](#installation)
-- [Quick start](#quick-start)
-- [Examples](#examples)
+- [Get Started](#-get-started-in-5-seconds)
+- [Why Vai?](#why-vai)
+- [Use Cases](#use-cases)
+- [CLI Reference](#-cli-reference)
+- [Advanced Configuration](#advanced-configuration-using-vaiyml)
+- [Real-World Examples](#real-world-examples)
+- [How It Works](#how-it-works)
+- [Tips and Tricks](#tips-and-tricks)
+- [Migrating](#migrating-from-other-tools)
+- [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
-- [License](#license)
 
-## Features
+---
 
-- 🔥 Hot reload: Automatically detects file changes and restarts your Go application instantly
-- ⚡  Zero configuration: Works out-of-the-box for Go projects, no setup required
-- 🎯 Zero external deps: Self contained executable using [fswatcher](https://github.com/sgtdi/fswatcher) for high-performance file monitoring
-- 🔧 Flexible workflows: Simple CLI mode for quick tasks, YAML configuration for complex multi-step workflows
-- 🚀 Production ready: Built for Go 1.25+, optimized for Go web frameworks and advanced pipelines
-- 📝 Smart file watching: Regex pattern matching, exclusion rules, and directory-specific monitoring
-- ⚙️ Environment vars: Easy injection of environment variables for different development scenarios
-- 🔄 Sequential & Parallel Execution: Run multiple commands in series or parallel for comprehensive workflows
+## ⚡ Get Started in 5 Seconds
 
-## Why `Vai`?
+```bash
+# Install
+go install github.com/sgtdi/vai@latest
 
--   **Hot reload**: Seamlessly rebuilds and restarts your Go application the moment you save a file, keeping your development flow uninterrupte
--   **Workflow**: Start instantly with a single command, or orchestrate complex, multi-step tasks with an optional `vai.yml`
--   **No external dependencies:**: `Vai` is a self-contained executable powered by our own [`fswatcher`](https://github.com/sgtdi/fswatcher) library for reliable, high-performance file monitoring
--   **Ready to use:** Ready by default for Go projects, allowing you to start hot-reloading from the CLI without writing a single line of configuration
+# Run
+vai go run .
 
-## Installation
-
-Ensure you have Go installed (version 1.25 or higher is recommended).
-
-```sh
-go install github.com/sgtdi/vai
+#Your app now hot reloads on every change
 ```
 
-## Quick start
+No YAML files required, no configuration or external dependencies. **It just works**
 
-The tool can be configured in two ways:
+---
 
-1.  **CLI Mode:** Provide flags and one or more commands directly
-2.  **File Mode:** Use a `vai.yml` file for more complex workflows with multiple commands in series or parallel
+## Why Vai?
 
-### CLI mode
+| Feature | Vai | Air | Fresh | Realize |
+|---------|:---:|:---:|:-----:|:-------:|
+| Works out of the box | ✅ | ✅  | ❌ | ❌ |
+| Zero config/flags needed | ✅ | ❌ | ❌ | ❌ |
+| No external dependencies | ✅ | ❌ | ❌ | ❌ |
+| CLI-first design | ✅ | ✅ | ✅ | ❌ |
+| Parallel job execution | ✅ | ❌ | ❌ | ✅ |
+| Built-in file watcher | ✅ | ❌ | ❌ | ❌ |
+| Setup time | 5 sec | 1 min | 3 min | 5 min |
 
-`Vai` follows a simple syntax: `vai [flags] [commands]`.
+**VAI is the only hot reload tool for Go that:**
+- Requires **zero configuration** to get started
+- Has **zero external dependencies** (self-contained with built-in [fswatcher](https://github.com/sgtdi/fswatcher))
+- Works **instantly** - from install to hot reload in 5 seconds
+- Supports **complex workflows** with parallel and sequential job execution (when you need it)
 
-#### Flags
+---
 
-| Flag &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Short | Description                                                               | Default                                                 |
-|:-------------------------------------------------------------|:------|:--------------------------------------------------------------------------|:--------------------------------------------------------|
-| `--cmd`                                                      | `-c`  | Command to run. Can be specified multiple times for sequential execution | (none)                                                  |
-| `--path`                                                     | `-p`  | Path to vai for changes                                                | `.`                                                     |
-| `--regex`                                                    | `-r`  | Comma-separated list of regex patterns for files to vai                | `".*\\.go$", "^go\\.mod$", "^go\\.sum$"`                  |
-| `--env`                                                      | `-e`  | Comma-separated list of `KEY=VALUE` pairs to set as environment variables| (none)                                                  |
-| `--save`                                                     | `-s`  | Save the current CLI flags to a new YAML configuration file              | (none)                                                  |
-| `--debug`                                                    | `-d`  | Enable debug mode to print detailed configuration and event information  | `false`                                                 |
-| `--help`                                                     | `-h`  | Show the help message and exit                                           | `false`                                                 |
+## Use Cases
 
-### CLI use cases
+### Web development (Gin, Echo, Chi, Fiber)
 
-Here are some practical examples of how to use `vai` from the command line.
-
-**1. Basic Go hot reload**
-The most common use case. `Vai` will monitor all `.go` files, `go.mod`, and `go.sum` in the current directory and restart the application on any change.
-
-```sh
+```bash
 vai go run .
 ```
 
-**2. Automatically run tests**
-Run all tests in your project whenever a Go file changes.
+Your web server restarts instantly every time you save, perfect for api development.
 
-```sh
+### Test-Driven development
+
+```bash
 vai go test -v ./...
 ```
 
-**3. Hot reload with environment variables**
-Watch a specific directory (`./app`) and inject environment variables for a database connection.
+Tests run automatically on every change. See results immediately.
 
-```sh
-vai --path=./app --env="DB_HOST=localhost,DB_PORT=5432" go run ./app
+### Environment variables
+
+```bash
+vai --env="PORT=8080,DB_HOST=localhost,DB_USER=admin" go run .
 ```
 
-**4. Hot reload Go web server (e.g., Gin, Echo)**
-Watch only `.go` files and `.html` templates to restart your web server.
+Inject environment variables without shell scripts.
 
-```sh
-vai --regex=".*\\.go$,.*\\.html$" go run .
+### Watch specific files
+
+```bash
+# Only watch .go and .html files
+vai --regex=".*\\.go$,.*\\.html$" go run ./cmd/server
+
+# Ignore test files
+vai --regex=".*\\.go$,!.*_test.go$" go run .
 ```
 
-**5. Save a command to a `vai.yml` file**
-If a command gets too long, you can save it to a `vai.yml` file for easier reuse. This command creates a `vai.yml` file with the specified settings.
+Fine-grained control over what triggers rebuilds.
 
-```sh
-vai --path=./src --regex=".*\\.go$" --save go run .
-```
-You can then run it with just `vai`.
+### Multiple Commands (Chaining)
 
-**6. Chaining multiple commands**
-Run a linter before executing your main application to catch errors early. `vai` will run the commands in sequence.
+```bash
+# Format then run
+vai --cmd "go fmt ./..." --cmd "go run ."
 
-```sh
-vai --cmd "golangci-lint run" --cmd "go run ."
+# Lint, test, then run
+vai --cmd "golangci-lint run" --cmd "go test ./..." --cmd "go run ."
 ```
 
-### File mode (`vai.yml`)
+Chain commands together and run in sequence.
 
-For more complex workflows, you can create a `vai.yml` file to define multiple jobs with sequential and parallel steps.
+### Save and customize your configuration
 
-**Example `vai.yml`:**
+```bash
+# Save commands to vai.yml
+vai --path=./app --regex=".*\\.go$" --env="PORT=8080" --save go run .
+
+# Then just run
+vai
+```
+
+---
+
+## 📖 CLI Reference
+
+```
+vai [flags] [command]
+
+USAGE:
+  vai go run .                    # Simple hot reload
+  vai --cmd "cmd1" --cmd "cmd2"   # Multiple commands
+  vai                             # Use vai.yml config
+
+FLAGS:
+  -c, --cmd string      Command to run (can be used multiple times for sequential execution)
+  -p, --path string     Path to watch for changes (default: ".")
+  -r, --regex string    Comma-separated regex patterns for files to watch (default: ".*\\.go$,^go\\.mod$,^go\\.sum$")
+  -e, --env string      Comma-separated KEY=VALUE pairs for environment variables
+  -s, --save string     Save current CLI flags to a YAML configuration file
+  -d, --debug           Enable debug mode with detailed output
+  -h, --help            Show this help message
+
+EXAMPLES:
+  # Basic hot reload
+  vai go run .
+  
+  # Watch specific directory
+  vai --path=./cmd/api go run ./cmd/api
+  
+  # Custom file patterns
+  vai --regex=".*\\.go$,.*\\.html$,.*\\.css$" go run .
+  
+  # With environment variables
+  vai --env="DEBUG=true,PORT=3000" go run .
+  
+  # Chain multiple commands
+  vai --cmd "go generate ./..." --cmd "go run ."
+  
+  # Save configuration to vai.yml
+  vai --path=./app --env="ENV=dev" --save go run ./app
+```
+
+---
+
+## Advanced configuration using `vai.yml`
+
+For complex projects with multiple workflows, you can create a `vai.yml` file, that will be automatically detect and used.
+
+### Simple config
 
 ```yaml
 config:
-  path: .
-  severity: warn
-  cooldown: 100ms
-  clearCli: false
-  bufferSize: 4096
-  batchingDuration: 0s
+  clearCli: true  # Clear screen before each reload
 
 jobs:
-  # This job runs the main application on changes to Go files
+  # Main application
   run-app:
     trigger:
       regex:
         - ".*\\.go$"
-        - "!.*_test.go$" # Exclude test files
+        - "!.*_test.go$"  # Exclude test files
     series:
       - cmd: "go fmt ./..."
       - cmd: "go run ."
 
-  # This job runs tests and linters in parallel on changes to test files
-  run-quality-checks:
+  # Run tests when test files change
+  test:
+    trigger:
+      paths:
+        - . # Entrypoint to watch for changes, multiple paths can be specified
+      regex:
+        - ".*_test\\.go$"
+    series:
+      - cmd: "go test -v ./..."
+```
+
+### Parallel Jobs
+
+```yaml
+config:
+  severity: info # Set logging level: debug, info, warn, error (default: warn)
+  clearCli: true
+  cooldown: 200ms
+
+jobs:
+  # Development server
+  dev-server:
+    trigger:
+      regex:
+        - ".*\\.go$"
+        - "!.*_test.go$"
+        - ".*\\.html$"
+        - ".*\\.css$"
+    series:
+      - cmd: "go fmt ./..."
+      - cmd: "go run ./cmd/server"
+    env:
+      - "ENV=development"
+      - "PORT=8080"
+
+  # Quality checks (runs in parallel)
+  quality:
     trigger:
       regex:
         - ".*_test\\.go$"
-    parallel:
-      - cmd: "go test -v ./..."
+    parallel:  # All commands run simultaneously
+      - cmd: "go test -v -race ./..."
       - cmd: "go vet ./..."
-      - cmd: "golangci-lint run"
+      - cmd: "golangci-lint run --fast"
+      - cmd: "staticcheck ./..."
+
+  # Assets pipeline
+  assets:
+    trigger:
+      regex:
+        - ".*\\.scss$"
+        - ".*\\.js$"
+    series:
+      - cmd: "npm run build:css"
+      - cmd: "npm run build:js"
 ```
 
-When you run `vai` in a directory with this `vai.yml`, it will:
-- Run `go fmt` and then `go run .` sequentially when a `.go` file (that isn't a test file) changes
-- Run `go test`, `go vet`, and `golangci-lint` all at the same time when a `_test.go` file changes
+### CLI and watcher customization
 
-#### Configuration Options
+```yaml
+config:
+  severity: warn             # Logging level: debug, info, warn, error (default: warn)
+  clearCli: false            # Clear terminal before running jobs (default: false)
+  cooldown: 100ms            # Wait time after file change to prevent duplicate triggers
+  batchingDuration: 1s       # Group multiple rapid changes into single trigger
+  bufferSize: 4096           # Event buffer size for high-velocity changes
+```
 
-The `config` section supports the following options:
+---
 
-| Option | Type | Description | Default |
-|:---|:---|:---|:---|
-| `path` | `string` | The directory path to watch for changes. | `.` |
-| `severity` | `string` | Logging verbosity level. Values: `debug`, `info`, `warn`, `error`. | `warn` |
-| `clearCli` | `bool` | Clear the console screen before running jobs. | `false` |
-| `cooldown` | `duration` | Time to wait after a file change before triggering. Prevents duplicate runs. | `100ms` |
-| `batchingDuration`| `duration` | Window to group multiple file events into a single trigger. | `0s` |
-| `bufferSize` | `int` | Size of the event channel buffer. | `4096` |
+## Real-World examples
 
-## Examples
+Complete working examples are in the [`examples/`](examples/) directory:
 
-For hands-on examples, check out the following directories. Each example includes a `vai.yml` and a [`README.md`](./examples/README.md) with detailed instructions.
+| Example | Description | Use Case |
+|---------|-------------|----------|
+| [**simple-test**](examples/simple-test) | Auto-run tests on file changes | TDD workflow |
+| [**build-and-run**](examples/build-and-run) | Build binary then execute | Production-like workflow |
+| [**web-server**](examples/web-server) | Hot reload web application | Web development |
+| [**advanced-workflow**](examples/advanced-workflow) | Parallel jobs & complex pipelines | Enterprise projects |
 
-| Example                                                   | Description                                                               |
-|:----------------------------------------------------------|:--------------------------------------------------------------------------|
-| [`simple-test`](./examples/simple-test)                    | Run tests on file changes       |
-| [`build-and-run`](./examples/build-and-run)                | Build a binary and run it |
-| [`web-server`](./examples/web-server)                      | Hot reloading a Go web server                     |
-| [`advanced-workflow`](./examples/advanced-workflow)        | Complex workflow with multiple jobs |
+Each example includes:
+- Complete `vai.yml` configuration
+- Sample Go application
+- Detailed README with instructions
+
+---
+
+## How It Works
+
+VAI uses a custom-built file watcher called [fswatcher](https://github.com/sgtdi/fswatcher) that monitors your project for changes. When a file matching your patterns is modified:
+
+1. **Event Detection**: fswatcher detects the file change
+2. **Debouncing**: VAI waits for the cooldown period (default 100ms) to batch rapid changes
+3. **Job Matching**: Finds all jobs with regex patterns matching the changed file
+4. **Execution**: Runs matched jobs (series = sequential, parallel = simultaneous)
+5. **Process Management**: Cleanly stops the old process and starts the new one
+
+This architecture means:
+- ⚡ **Fast**: No external process spawning overhead
+- 🎯 **Reliable**: Purpose-built file watcher with proven stability
+- 🔒 **Safe**: Proper process cleanup prevents zombie processes
+- 📦 **Simple**: Everything in one binary
+
+---
+
+## Tips and tricks
+
+### Prevent duplicate rebuilds
+
+```yaml
+config:
+  cooldown: 200ms           # Wait 200ms after last change
+  batchingDuration: 500ms   # Group changes within 500ms window
+```
+
+Useful when your editor saves multiple files simultaneously.
+
+### Watch specific directories
+
+```bash
+vai --path=./internal go run ./cmd/api
+```
+
+Ignore changes outside your main source directory.
+
+### Debugging file watcher and general issues
+
+```bash
+vai --debug go run .
+```
+
+Shows exactly which files are being watched and which events trigger rebuilds.
+
+### Exclude Generated Files
+
+```yaml
+jobs:
+  app:
+    trigger:
+      regex:
+        - ".*\\.go$"
+        - "!.*\\.pb\\.go$"      # Exclude protobuf generated files
+        - "!.*_gen\\.go$"       # Exclude go:generate output
+        - "!vendor/.*"          # Exclude vendor directory
+```
+
+### Multiple Environments
+
+```bash
+# Development
+vai --env="ENV=dev,DB_HOST=localhost" go run .
+
+# Staging (save to vai.staging.yml)
+vai --env="ENV=staging,DB_HOST=staging.db" --save=vai.staging.yml go run .
+
+# Use staging config
+vai -f vai.staging.yml
+```
+
+---
+
+## Migrating from other tools
+
+### From Air
+
+**Air** requires `air.toml`:
+```toml
+[build]
+  cmd = "go build -o ./tmp/main ."
+  bin = "./tmp/main"
+  include_ext = ["go", "html"]
+```
+
+**VAI** needs nothing:
+```bash
+vai go run .
+```
+
+Or with equivalent config:
+```yaml
+jobs:
+  app:
+    trigger:
+      regex: [".*\\.go$", ".*\\.html$"]
+    series:
+      - cmd: "go run ."
+```
+
+### From Fresh
+
+**Fresh** requires `runner.conf`:
+```
+root:              .
+tmp_path:          ./tmp
+build_name:        runner-build
+build_log:         runner-build-errors.log
+```
+
+**VAI**:
+```bash
+vai go run .
+```
+
+---
+
+## Troubleshooting
+
+### VAI doesn't detect file changes
+
+Check your regex patterns:
+   ```bash
+   vai --debug go run .  # Shows which files are watched
+   ```
+
+Increase buffer size for large projects:
+   ```yaml
+   config:
+     bufferSize: 8192
+   ```
+
+Some editors save via rename/delete, just adjust cooldown:
+   ```yaml
+   config:
+     cooldown: 300ms
+   ```
+
+### Process doesn't stop cleanly
+
+VAI sends SIGTERM (Unix) or taskkill (Windows) to processes. If your app doesn't handle shutdown gracefully:
+
+```go
+// Add signal handling to your main.go
+func main() {
+    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer stop()
+    
+    // Your application code
+    
+    <-ctx.Done()
+    // Cleanup
+}
+```
+
+### High CPU usage
+
+Reduce file system events:
+
+```yaml
+config:
+  cooldown: 500ms           # Higher cooldown
+  batchingDuration: 1s      # Batch events
+jobs:
+  app:
+    trigger:
+      regex:
+        - "internal/.*\\.go$"  # Watch only specific dirs
+        - "!vendor/.*"         # Exclude vendor
+        - "!node_modules/.*"   # Exclude node_modules
+```
+
+---
 
 ## Contributing
 
-Contributions are welcome! Please feel free to open an issue or submit a pull request.
+Contributions are welcome! Help making VAI better.
 
-## License
-
-This project is licensed under the MIT License.
+- 🐛 **Report bugs** - [Open an issue](https://github.com/sgtdi/vai/issues/new)
+- 💡 **Suggest features** - [Start a discussion](https://github.com/sgtdi/vai/discussions/new)
+- 📖 **Improve docs** - Submit a PR with documentation fixes
+- 🔧 **Submit PRs** - Check [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
+- ⭐ **Star the repo** - Helps others discover VAI
