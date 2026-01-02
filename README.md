@@ -64,7 +64,7 @@ No YAML files required, no configuration or external dependencies. **It just wor
 
 ---
 
-## Use Cases
+## 🔥 Use Cases
 
 ### Web development (Gin, Echo, Chi, Fiber)
 
