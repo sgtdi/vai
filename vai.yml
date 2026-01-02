@@ -1,6 +1,5 @@
 config:
-  path: .
-  severity: warn
+  severity: debug
   cooldown: 100ms
   clearCli: false
   bufferSize: 4096

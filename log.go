@@ -31,37 +31,37 @@ func colorize(color string, values ...any) string {
 	)
 }
 
-// Red returns a string with red color
+// red returns a string with red color
 func red(v ...any) string {
 	return colorize(ColorRed, v...)
 }
 
-// Green returns a string with green color
+// green returns a string with green color
 func green(v ...any) string {
 	return colorize(ColorGreen, v...)
 }
 
-// Yellow returns a string with yellow color
+// yellow returns a string with yellow color
 func yellow(v ...any) string {
 	return colorize(ColorYellow, v...)
 }
 
-// Cyan returns a string with cyan color
+// cyan returns a string with cyan color
 func cyan(v ...any) string {
 	return colorize(ColorCyan, v...)
 }
 
-// Purple returns a string with purple color
+// purple returns a string with purple color
 func purple(v ...any) string {
 	return colorize(ColorPurple, v...)
 }
 
-// White returns a string with white color
+// white returns a string with white color
 func white(v ...any) string {
 	return colorize(ColorWhite, v...)
 }
 
-// Gray returns a string with gray color
+// gray returns a string with gray color
 func gray(v ...any) string {
 	return colorize(ColorGray, v...)
 }
@@ -76,8 +76,8 @@ const (
 	SeverityError
 )
 
-// ParseSeverity converts a string to a Severity level
-func ParseSeverity(s string) Severity {
+// parseSeverity converts a string to a Severity level
+func parseSeverity(s string) Severity {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "debug":
 		return SeverityDebug
@@ -133,12 +133,12 @@ type Logger struct {
 	level Severity
 }
 
-// New creates a new logger instance with the specified log level
-func New(level Severity) *Logger {
+// newLogger creates a new logger instance with the specified log level
+func newLogger(level Severity) *Logger {
 	return &Logger{level: level}
 }
 
-// Log logs a message with the specified level, operation, format, and arguments
+// log logs a message with the specified level, operation, format, and arguments
 func (l *Logger) log(level Severity, op Op, format string, args ...any) {
 	// Severity filter
 	if level < l.level {
@@ -164,22 +164,22 @@ func (l *Logger) log(level Severity, op Op, format string, args ...any) {
 	)
 }
 
-// Debug logs a debug message with the specified operation, format, and arguments
+// debug logs a debug message with the specified operation, format, and arguments
 func (l *Logger) debug(op Op, format string, args ...any) {
 	l.log(SeverityDebug, op, format, args...)
 }
 
-// Info logs an info message with the specified operation, format, and arguments
+// info logs an info message with the specified operation, format, and arguments
 func (l *Logger) info(op Op, format string, args ...any) {
 	l.log(SeverityInfo, op, format, args...)
 }
 
-// Warn logs a warn message with the specified operation, format, and arguments
+// warn logs a warn message with the specified operation, format, and arguments
 func (l *Logger) warn(op Op, format string, args ...any) {
 	l.log(SeverityWarn, op, format, args...)
 }
 
-// Error logs an error message with the specified operation, format, and arguments
+// error logs an error message with the specified operation, format, and arguments
 func (l *Logger) error(op Op, format string, args ...any) {
 	l.log(SeverityError, op, format, args...)
 }
