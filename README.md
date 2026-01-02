@@ -44,7 +44,7 @@ No YAML files required, no configuration or external dependencies. **It just wor
 
 ---
 
-## Why Vai?
+## 🎯 Why Vai?
 
 | Feature | Vai | Air | Fresh | Realize |
 |---------|:---:|:---:|:-----:|:-------:|
@@ -167,7 +167,7 @@ EXAMPLES:
 
 ---
 
-## Advanced configuration using `vai.yml`
+## 🔧 Advanced configuration using `vai.yml`
 
 For complex projects with multiple workflows, you can create a `vai.yml` file, that will be automatically detect and used.
 
@@ -258,7 +258,7 @@ config:
 
 ---
 
-## Real examples
+## 📚 Real examples
 
 Complete working examples are in the [`examples/`](examples/) directory:
 
@@ -276,7 +276,7 @@ Each example includes:
 
 ---
 
-## How it works
+## 🎓 How it works
 
 VAI uses a custom-built file watcher called [fswatcher](https://github.com/sgtdi/fswatcher) that monitors your project for changes. When a file matching your patterns is modified:
 
@@ -294,7 +294,7 @@ This architecture means:
 
 ---
 
-## Tips and tricks
+## 💡 Tips and tricks
 
 ### Prevent duplicate rebuilds
 
@@ -350,7 +350,7 @@ vai -f vai.staging.yml
 
 ---
 
-## Migrating from other tools
+## 🔄 Migrating from other tools
 
 ### From Air
 
@@ -394,7 +394,7 @@ vai go run .
 
 ---
 
-## Troubleshooting
+## 🐛 Troubleshooting
 
 ### VAI doesn't detect file changes
 
