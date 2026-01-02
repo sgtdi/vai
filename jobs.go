@@ -354,7 +354,7 @@ func (m *Manager) stop() {
 	for name, job := range m.running {
 		logger.log(SeverityDebug, OpWarn, "JobManager: Stopping job on exit: %s", name)
 		job.cancel()
-		stoppedChs = append(stoppedChs, Job{Name: name}.stop())
+		stoppedChs = append(stoppedChs, (&Job{Name: name}).stop())
 	}
 	m.mu.Unlock()
 
@@ -375,7 +375,7 @@ func (m *Manager) register(jobName string) (context.Context, func()) {
 		logger.log(SeverityDebug, OpWarn, "JobManager: Stopping previously running job: %s", jobName)
 		existingJob.cancel()
 		logger.log(SeverityDebug, OpWarn, "JobManager: Calling stopCommand for %s", jobName)
-		<-Job{Name: jobName}.stop()
+		<-(&Job{Name: jobName}).stop()
 		logger.log(SeverityDebug, OpSuccess, "JobManager: stopCommand for %s finished", jobName)
 	}
 
