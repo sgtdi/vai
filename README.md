@@ -16,19 +16,19 @@
 
 - [Get Started](#-get-started-in-5-seconds)
 - [Why Vai?](#why-vai)
-- [Use Cases](#use-cases)
-- [CLI Reference](#-cli-reference)
-- [Advanced Configuration](#advanced-configuration-using-vaiyml)
-- [Real-World Examples](#real-world-examples)
-- [How It Works](#how-it-works)
-- [Tips and Tricks](#tips-and-tricks)
+- [Use cases](#use-cases)
+- [CLI reference](#-cli-reference)
+- [Advanced configuration](#advanced-configuration-using-vaiyml)
+- [Real examples](#real-examples)
+- [How it works](#how-it-works)
+- [Tips and tricks](#tips-and-tricks)
 - [Migrating](#migrating-from-other-tools)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 
 ---
 
-## ⚡ Get Started in 5 Seconds
+## ⚡ Get started in 5 seconds
 
 ```bash
 # Install
@@ -74,7 +74,7 @@ vai go run .
 
 Your web server restarts instantly every time you save, perfect for api development.
 
-### Test-Driven development
+### Test-driven development
 
 ```bash
 vai go test -v ./...
@@ -126,7 +126,7 @@ vai
 
 ---
 
-## 📖 CLI Reference
+## 📖 CLI reference
 
 ```
 vai [flags] [command]
@@ -258,7 +258,7 @@ config:
 
 ---
 
-## Real-World examples
+## Real examples
 
 Complete working examples are in the [`examples/`](examples/) directory:
 
@@ -276,7 +276,7 @@ Each example includes:
 
 ---
 
-## How It Works
+## How it works
 
 VAI uses a custom-built file watcher called [fswatcher](https://github.com/sgtdi/fswatcher) that monitors your project for changes. When a file matching your patterns is modified:
 
