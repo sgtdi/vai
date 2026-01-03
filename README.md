@@ -8,22 +8,24 @@
 
 > *Vai (Italian: "Go!") - Because your code should go as fast as you do*
 
-**Stop the endless cycle of Ctrl+C → rebuild → restart** VAI automatically rebuilds and restarts your Go applications the instant you save a file. Zero configuration, hassle and third-party dependencies.
+**Stop the endless cycle of Ctrl+C → rebuild → restart** 
+
+Vai automatically rebuilds and restarts your Go applications the instant you save a file. Zero configuration, hassle and third-party dependencies.
 
 <img src="https://raw.githubusercontent.com/sgtdi/watch/refs/heads/dev/examples/vai-go-hot-reload.png" width="100%" alt="vai golang hot reload terminal interface">
 
 ## Index
 
-- [Get Started](#-get-started-in-5-seconds)
-- [Why Vai?](#why-vai)
-- [Use cases](#use-cases)
+- [Get started](#-get-started-in-5-seconds)
+- [Why Vai?](#-why-vai-?)
+- [Use cases](#-use-cases)
 - [CLI reference](#-cli-reference)
-- [Advanced configuration](#advanced-configuration-using-vaiyml)
-- [Real examples](#real-examples)
-- [How it works](#how-it-works)
-- [Tips and tricks](#tips-and-tricks)
-- [Migrating](#migrating-from-other-tools)
-- [Troubleshooting](#troubleshooting)
+- [Advanced configuration](#-advanced-configuration-using-vaiyml)
+- [Real examples](#-real-examples)
+- [How it works](#-how-it-works)
+- [Tips and tricks](#-tips-and-tricks)
+- [Migrating](#-migrating-from-other-tools)
+- [Troubleshooting](#-troubleshooting)
 - [Contributing](#contributing)
 
 ---
@@ -56,7 +58,7 @@ No YAML files required, no configuration or external dependencies. **It just wor
 | Built-in file watcher | ✅ | ❌ | ❌ | ❌ |
 | Setup time | 5 sec | 1 min | 3 min | 5 min |
 
-**VAI is the only hot reload tool for Go that:**
+**Vai is the only hot reload tool for Go that:**
 - Requires **zero configuration** to get started
 - Has **zero external dependencies** (self-contained with built-in [fswatcher](https://github.com/sgtdi/fswatcher))
 - Works **instantly** - from install to hot reload in 5 seconds
@@ -142,7 +144,7 @@ FLAGS:
   -r, --regex string    Comma-separated regex patterns for files to watch (default: ".*\\.go$,^go\\.mod$,^go\\.sum$")
   -e, --env string      Comma-separated KEY=VALUE pairs for environment variables
   -s, --save string     Save current CLI flags to a YAML configuration file
-  -d, --debug           Enable debug mode with detailed output
+  -d, --debug           Enable debug mode with detailed output and create a debug.log to record watcher events
   -h, --help            Show this help message
 
 EXAMPLES:
@@ -278,10 +280,10 @@ Each example includes:
 
 ## 🎓 How it works
 
-VAI uses a custom-built file watcher called [fswatcher](https://github.com/sgtdi/fswatcher) that monitors your project for changes. When a file matching your patterns is modified:
+Vai uses a custom-built file watcher called [fswatcher](https://github.com/sgtdi/fswatcher) that monitors your project for changes. When a file matching your patterns is modified:
 
 1. **Event Detection**: fswatcher detects the file change
-2. **Debouncing**: VAI waits for the cooldown period (default 100ms) to batch rapid changes
+2. **Debouncing**: Vai waits for the cooldown period (default 100ms) to batch rapid changes
 3. **Job Matching**: Finds all jobs with regex patterns matching the changed file
 4. **Execution**: Runs matched jobs (series = sequential, parallel = simultaneous)
 5. **Process Management**: Cleanly stops the old process and starts the new one
@@ -320,7 +322,7 @@ Ignore changes outside your main source directory.
 vai --debug go run .
 ```
 
-Shows exactly which files are being watched and which events trigger rebuilds.
+Shows exactly which files are being watched and which events trigger rebuilds. 
 
 ### Exclude Generated Files
 
@@ -362,7 +364,7 @@ vai -f vai.staging.yml
   include_ext = ["go", "html"]
 ```
 
-**VAI** needs nothing:
+**Vai** needs nothing:
 ```bash
 vai go run .
 ```
@@ -387,7 +389,7 @@ build_name:        runner-build
 build_log:         runner-build-errors.log
 ```
 
-**VAI**:
+**Vai** needs nothing:
 ```bash
 vai go run .
 ```
@@ -396,7 +398,7 @@ vai go run .
 
 ## 🐛 Troubleshooting
 
-### VAI doesn't detect file changes
+### Vai doesn't detect file changes
 
 Check your regex patterns:
    ```bash
@@ -417,7 +419,7 @@ Some editors save via rename/delete, just adjust cooldown:
 
 ### Process doesn't stop cleanly
 
-VAI sends SIGTERM (Unix) or taskkill (Windows) to processes. If your app doesn't handle shutdown gracefully:
+Vai sends SIGTERM (Unix) or taskkill (Windows) to processes. If your app doesn't handle shutdown gracefully:
 
 ```go
 // Add signal handling to your main.go
@@ -453,10 +455,10 @@ jobs:
 
 ## Contributing
 
-Contributions are welcome! Help making VAI better.
+Contributions are welcome! Help making Vai better.
 
 - 🐛 **Report bugs** - [Open an issue](https://github.com/sgtdi/vai/issues/new)
 - 💡 **Suggest features** - [Start a discussion](https://github.com/sgtdi/vai/discussions/new)
 - 📖 **Improve docs** - Submit a PR with documentation fixes
 - 🔧 **Submit PRs** - Check [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
-- ⭐ **Star the repo** - Helps others discover VAI
+- ⭐ **Star the repo** - Helps others discover Vai
