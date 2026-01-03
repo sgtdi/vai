@@ -28,8 +28,6 @@ Vai automatically rebuilds and restarts your Go applications the instant you sav
 - [Troubleshooting](#-troubleshooting)
 - [Contributing](#contributing)
 
----
-
 ## ⚡ Get started in 5 seconds
 
 ```bash
@@ -43,8 +41,6 @@ vai go run .
 ```
 
 No YAML files required, no configuration or external dependencies. **It just works**
-
----
 
 ## 🎯 Why Vai?
 
@@ -63,8 +59,6 @@ No YAML files required, no configuration or external dependencies. **It just wor
 - Has **zero external dependencies** (self-contained with built-in [fswatcher](https://github.com/sgtdi/fswatcher))
 - Works **instantly** - from install to hot reload in 5 seconds
 - Supports **complex workflows** with parallel and sequential job execution (when you need it)
-
----
 
 ## 🔥 Use Cases
 
@@ -126,8 +120,6 @@ vai --path=./app --regex=".*\\.go$" --env="PORT=8080" --save go run .
 vai
 ```
 
----
-
 ## 📖 CLI reference
 
 ```
@@ -166,8 +158,6 @@ EXAMPLES:
   # Save configuration to vai.yml
   vai --path=./app --env="ENV=dev" --save go run ./app
 ```
-
----
 
 ## 🔧 Advanced configuration using `vai.yml`
 
@@ -258,8 +248,6 @@ config:
   bufferSize: 4096           # Event buffer size for high-velocity changes
 ```
 
----
-
 ## 📚 Real examples
 
 Complete working examples are in the [`examples/`](examples/) directory:
@@ -276,8 +264,6 @@ Each example includes:
 - Sample Go application
 - Detailed README with instructions
 
----
-
 ## 🎓 How it works
 
 Vai uses a custom-built file watcher called [fswatcher](https://github.com/sgtdi/fswatcher) that monitors your project for changes. When a file matching your patterns is modified:
@@ -293,8 +279,6 @@ This architecture means:
 - 🎯 **Reliable**: Purpose-built file watcher with proven stability
 - 🔒 **Safe**: Proper process cleanup prevents zombie processes
 - 📦 **Simple**: Everything in one binary
-
----
 
 ## 💡 Tips and tricks
 
@@ -350,8 +334,6 @@ vai --env="ENV=staging,DB_HOST=staging.db" --save=vai.staging.yml go run .
 vai -f vai.staging.yml
 ```
 
----
-
 ## 🔄 Migrating from other tools
 
 ### From Air
@@ -393,8 +375,6 @@ build_log:         runner-build-errors.log
 ```bash
 vai go run .
 ```
-
----
 
 ## 🐛 Troubleshooting
 
@@ -450,8 +430,6 @@ jobs:
         - "!vendor/.*"         # Exclude vendor
         - "!node_modules/.*"   # Exclude node_modules
 ```
-
----
 
 ## Contributing
 
