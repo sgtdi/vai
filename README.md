@@ -104,7 +104,7 @@ vai --regex=".*\\.go$,!.*_test.go$" go run .
 
 Fine-grained control over what triggers rebuilds.
 
-### Multiple Commands (Chaining)
+### Multiple commands (Chaining)
 
 ```bash
 # Format then run
@@ -201,7 +201,7 @@ jobs:
       - cmd: "go test -v ./..."
 ```
 
-### Parallel Jobs
+### Parallel jobs
 
 ```yaml
 config:
@@ -337,7 +337,7 @@ jobs:
         - "!vendor/.*"          # Exclude vendor directory
 ```
 
-### Multiple Environments
+### Multiple envs
 
 ```bash
 # Development
