@@ -17,7 +17,7 @@ Vai automatically rebuilds and restarts your Go applications the instant you sav
 ## Index
 
 - [Get started](#-get-started-in-5-seconds)
-- [Why Vai?](#-why-vai-?)
+- [Why Vai?](#-why-vai)
 - [Use cases](#-use-cases)
 - [CLI reference](#-cli-reference)
 - [Advanced configuration](#-advanced-configuration-using-vaiyml)
