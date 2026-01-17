@@ -3,8 +3,8 @@ module github.com/sgtdi/vai
 go 1.25.4
 
 require (
-	github.com/sgtdi/fswatcher v1.1.1
+	github.com/sgtdi/fswatcher v1.2.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-require golang.org/x/sys v0.39.0 // indirect
+require golang.org/x/sys v0.40.0 // indirect

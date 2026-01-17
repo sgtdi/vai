@@ -10,7 +10,7 @@ import (
 	"syscall"
 )
 
-var version = "1.2.0"
+var version = "1.2.1"
 var logger *Logger
 
 // Args struct for command line arguments
