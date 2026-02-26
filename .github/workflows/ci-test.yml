@@ -62,7 +62,7 @@ jobs:
           fi
 
       - name: "Upload coverage report"
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report-${{ matrix.os }}
           path: coverage.out
