@@ -50,6 +50,48 @@ func TestWatch_SetDefaults(t *testing.T) {
 	})
 }
 
+func TestWatch_EffectiveCooldown(t *testing.T) {
+	testCases := []struct {
+		name             string
+		cooldown         time.Duration
+		batchingDuration time.Duration
+		expected         time.Duration
+	}{
+		{
+			name:     "uses cooldown when batching duration is not set",
+			cooldown: 100 * time.Millisecond,
+			expected: 100 * time.Millisecond,
+		},
+		{
+			name:             "uses batching duration when it is longer",
+			cooldown:         100 * time.Millisecond,
+			batchingDuration: 1 * time.Second,
+			expected:         1 * time.Second,
+		},
+		{
+			name:             "keeps cooldown when it is longer",
+			cooldown:         1 * time.Second,
+			batchingDuration: 100 * time.Millisecond,
+			expected:         1 * time.Second,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			w := &Vai{
+				Config: Config{
+					Cooldown:         tc.cooldown,
+					BatchingDuration: tc.batchingDuration,
+				},
+			}
+
+			if got := w.effectiveCooldown(); got != tc.expected {
+				t.Errorf("Expected effective cooldown to be %v, got %v", tc.expected, got)
+			}
+		})
+	}
+}
+
 func TestWatch_Save(t *testing.T) {
 	w := &Vai{
 		Config: Config{Severity: "info"},

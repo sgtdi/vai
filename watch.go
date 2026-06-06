@@ -346,11 +346,8 @@ func (v *Vai) newWatcher() (fswatcher.Watcher, error) {
 
 	// Create a fswatcher instance
 	opts := []fswatcher.WatcherOpt{
-		fswatcher.WithCooldown(v.Config.Cooldown),
+		fswatcher.WithCooldown(v.effectiveCooldown()),
 		fswatcher.WithBufferSize(v.Config.BufferSize),
-	}
-	if v.Config.BatchingDuration > 0 {
-		opts = append(opts, fswatcher.WithEventBatching(v.Config.BatchingDuration))
 	}
 	if len(incRegex) > 0 {
 		opts = append(opts, fswatcher.WithIncRegex(incRegex...))
@@ -364,6 +361,13 @@ func (v *Vai) newWatcher() (fswatcher.Watcher, error) {
 	}
 
 	return fswatcher.New(opts...)
+}
+
+func (v *Vai) effectiveCooldown() time.Duration {
+	if v.Config.BatchingDuration > v.Config.Cooldown {
+		return v.Config.BatchingDuration
+	}
+	return v.Config.Cooldown
 }
 
 // aggregateRegex collects all unique regex patterns from all jobs
